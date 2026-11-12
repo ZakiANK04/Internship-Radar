@@ -1,0 +1,1032 @@
+[
+ {
+  "ats": "greenhouse",
+  "token": "imc",
+  "name": "IMC Trading"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "doctolib",
+  "name": "Doctolib"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "mirakl",
+  "name": "Mirakl"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "artefact",
+  "name": "Artefact"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "stripe",
+  "name": "Stripe"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "pinterest",
+  "name": "Pinterest"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "databricks",
+  "name": "Databricks"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "canonical",
+  "name": "Canonical"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "shifttechnology",
+  "name": "Shift Technology"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "celonis",
+  "name": "Celonis"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "datadog",
+  "name": "Datadog"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "hellofresh",
+  "name": "HelloFresh"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "flowtraders",
+  "name": "Flow Traders"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "figma",
+  "name": "Figma"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "graphcore",
+  "name": "Graphcore"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "cabify",
+  "name": "Cabify"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "sumup",
+  "name": "SumUp"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "applovin",
+  "name": "AppLovin"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "cloudflare",
+  "name": "Cloudflare"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "raisin",
+  "name": "Raisin"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "samsara",
+  "name": "Samsara"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "scaleai",
+  "name": "Scale AI"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "getyourguide",
+  "name": "GetYourGuide"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "helsing",
+  "name": "Helsing"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "tamara",
+  "name": "Tamara"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "trivago",
+  "name": "Trivago"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "monzo",
+  "name": "Monzo"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "dataiku",
+  "name": "Dataiku"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "n26",
+  "name": "N26"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "mongodb",
+  "name": "MongoDB"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "feedzai",
+  "name": "Feedzai"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "thefork",
+  "name": "TheFork"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "lovable",
+  "name": "Lovable"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "algolia",
+  "name": "Algolia"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "adyen",
+  "name": "Adyen"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "elastic",
+  "name": "Elastic"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "gitlab",
+  "name": "GitLab"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "jetbrains",
+  "name": "JetBrains"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "collibra",
+  "name": "Collibra"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "showpad",
+  "name": "Showpad"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "stabilityai",
+  "name": "Stability AI"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "polyai",
+  "name": "PolyAI"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "anthropic",
+  "name": "Anthropic"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "careem",
+  "name": "Careem"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "typeform",
+  "name": "Typeform"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "wallapop",
+  "name": "Wallapop"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "contentful",
+  "name": "Contentful"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "commercetools",
+  "name": "commercetools"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "wise",
+  "name": "Wise"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "speechmatics",
+  "name": "Speechmatics"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "bird",
+  "name": "Bird"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "janestreet",
+  "name": "Jane Street"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "proton",
+  "name": "Proton"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "scandit",
+  "name": "Scandit"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "ledgy",
+  "name": "Ledgy"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "trustpilot",
+  "name": "Trustpilot"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "cognite",
+  "name": "Cognite"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "wolt",
+  "name": "Wolt"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "truecaller",
+  "name": "Truecaller"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "nebius",
+  "name": "Nebius"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "coreweave",
+  "name": "CoreWeave"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "intercom",
+  "name": "Intercom"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "twilio",
+  "name": "Twilio"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "okta",
+  "name": "Okta"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "snorkelai",
+  "name": "Snorkel AI"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "xai",
+  "name": "xAI"
+ },
+ {
+  "ats": "greenhouse",
+  "token": "duolingo",
+  "name": "Duolingo"
+ },
+ {
+  "ats": "lever",
+  "token": "palantir",
+  "name": "Palantir"
+ },
+ {
+  "ats": "lever",
+  "token": "veepee",
+  "name": "Veepee"
+ },
+ {
+  "ats": "lever",
+  "token": "theodo",
+  "name": "Theodo"
+ },
+ {
+  "ats": "lever",
+  "token": "aircall",
+  "name": "Aircall"
+ },
+ {
+  "ats": "lever",
+  "token": "ekimetrics",
+  "name": "Ekimetrics"
+ },
+ {
+  "ats": "lever",
+  "token": "netlight",
+  "name": "Netlight"
+ },
+ {
+  "ats": "lever",
+  "token": "heetch",
+  "name": "Heetch"
+ },
+ {
+  "ats": "lever",
+  "token": "malt",
+  "name": "Malt"
+ },
+ {
+  "ats": "lever",
+  "token": "pigment",
+  "name": "Pigment"
+ },
+ {
+  "ats": "lever",
+  "token": "scaleway",
+  "name": "Scaleway"
+ },
+ {
+  "ats": "lever",
+  "token": "deliverect",
+  "name": "Deliverect"
+ },
+ {
+  "ats": "lever",
+  "token": "qonto",
+  "name": "Qonto"
+ },
+ {
+  "ats": "lever",
+  "token": "blablacar",
+  "name": "BlaBlaCar"
+ },
+ {
+  "ats": "lever",
+  "token": "musixmatch",
+  "name": "Musixmatch"
+ },
+ {
+  "ats": "lever",
+  "token": "agicap",
+  "name": "Agicap"
+ },
+ {
+  "ats": "lever",
+  "token": "sonarsource",
+  "name": "Sonar"
+ },
+ {
+  "ats": "lever",
+  "token": "gojob",
+  "name": "Gojob"
+ },
+ {
+  "ats": "lever",
+  "token": "swile",
+  "name": "Swile"
+ },
+ {
+  "ats": "lever",
+  "token": "spotify",
+  "name": "Spotify"
+ },
+ {
+  "ats": "lever",
+  "token": "contentsquare",
+  "name": "Contentsquare"
+ },
+ {
+  "ats": "lever",
+  "token": "younited",
+  "name": "Younited"
+ },
+ {
+  "ats": "lever",
+  "token": "360learning",
+  "name": "360Learning"
+ },
+ {
+  "ats": "lever",
+  "token": "vestiairecollective",
+  "name": "Vestiaire Collective"
+ },
+ {
+  "ats": "lever",
+  "token": "jobandtalent",
+  "name": "Jobandtalent"
+ },
+ {
+  "ats": "lever_eu",
+  "token": "prima",
+  "name": "Prima"
+ },
+ {
+  "ats": "ashby",
+  "token": "enpal",
+  "name": "Enpal"
+ },
+ {
+  "ats": "ashby",
+  "token": "backmarket",
+  "name": "Back Market"
+ },
+ {
+  "ats": "ashby",
+  "token": "alan",
+  "name": "Alan"
+ },
+ {
+  "ats": "ashby",
+  "token": "joko",
+  "name": "Joko"
+ },
+ {
+  "ats": "ashby",
+  "token": "tacto",
+  "name": "Tacto"
+ },
+ {
+  "ats": "ashby",
+  "token": "perplexity",
+  "name": "Perplexity"
+ },
+ {
+  "ats": "ashby",
+  "token": "notion",
+  "name": "Notion"
+ },
+ {
+  "ats": "ashby",
+  "token": "cohere",
+  "name": "Cohere"
+ },
+ {
+  "ats": "ashby",
+  "token": "harvey",
+  "name": "Harvey"
+ },
+ {
+  "ats": "ashby",
+  "token": "sierra",
+  "name": "Sierra"
+ },
+ {
+  "ats": "ashby",
+  "token": "hcompany",
+  "name": "H Company"
+ },
+ {
+  "ats": "ashby",
+  "token": "ledger",
+  "name": "Ledger"
+ },
+ {
+  "ats": "ashby",
+  "token": "weaviate",
+  "name": "Weaviate"
+ },
+ {
+  "ats": "ashby",
+  "token": "lifen",
+  "name": "Lifen"
+ },
+ {
+  "ats": "ashby",
+  "token": "zefir",
+  "name": "Zefir"
+ },
+ {
+  "ats": "ashby",
+  "token": "prior-labs",
+  "name": "Prior Labs"
+ },
+ {
+  "ats": "ashby",
+  "token": "cuspai",
+  "name": "CuspAI"
+ },
+ {
+  "ats": "ashby",
+  "token": "poolside",
+  "name": "Poolside"
+ },
+ {
+  "ats": "ashby",
+  "token": "gladia",
+  "name": "Gladia"
+ },
+ {
+  "ats": "ashby",
+  "token": "photoroom",
+  "name": "Photoroom"
+ },
+ {
+  "ats": "ashby",
+  "token": "nabla",
+  "name": "Nabla"
+ },
+ {
+  "ats": "ashby",
+  "token": "dust",
+  "name": "Dust"
+ },
+ {
+  "ats": "ashby",
+  "token": "linkup",
+  "name": "Linkup"
+ },
+ {
+  "ats": "ashby",
+  "token": "legora",
+  "name": "Legora"
+ },
+ {
+  "ats": "ashby",
+  "token": "elevenlabs",
+  "name": "ElevenLabs"
+ },
+ {
+  "ats": "ashby",
+  "token": "openai",
+  "name": "OpenAI"
+ },
+ {
+  "ats": "ashby",
+  "token": "deepl",
+  "name": "DeepL"
+ },
+ {
+  "ats": "ashby",
+  "token": "black-forest-labs",
+  "name": "Black Forest Labs"
+ },
+ {
+  "ats": "ashby",
+  "token": "synthesia",
+  "name": "Synthesia"
+ },
+ {
+  "ats": "ashby",
+  "token": "owkin",
+  "name": "Owkin"
+ },
+ {
+  "ats": "ashby",
+  "token": "swan",
+  "name": "Swan"
+ },
+ {
+  "ats": "ashby",
+  "token": "sorare",
+  "name": "Sorare"
+ },
+ {
+  "ats": "ashby",
+  "token": "pennylane",
+  "name": "Pennylane"
+ },
+ {
+  "ats": "ashby",
+  "token": "n8n",
+  "name": "n8n"
+ },
+ {
+  "ats": "ashby",
+  "token": "pleo",
+  "name": "Pleo"
+ },
+ {
+  "ats": "ashby",
+  "token": "lunar",
+  "name": "Lunar"
+ },
+ {
+  "ats": "ashby",
+  "token": "thndr",
+  "name": "Thndr"
+ },
+ {
+  "ats": "ashby",
+  "token": "wayve",
+  "name": "Wayve"
+ },
+ {
+  "ats": "ashby",
+  "token": "faculty",
+  "name": "Faculty"
+ },
+ {
+  "ats": "ashby",
+  "token": "tractable",
+  "name": "Tractable"
+ },
+ {
+  "ats": "ashby",
+  "token": "sifflet",
+  "name": "Sifflet"
+ },
+ {
+  "ats": "ashby",
+  "token": "ankorstore",
+  "name": "Ankorstore"
+ },
+ {
+  "ats": "ashby",
+  "token": "dottxt",
+  "name": ".txt"
+ },
+ {
+  "ats": "ashby",
+  "token": "adaptive",
+  "name": "Adaptive ML"
+ },
+ {
+  "ats": "ashby",
+  "token": "encord",
+  "name": "Encord"
+ },
+ {
+  "ats": "ashby",
+  "token": "langchain",
+  "name": "LangChain"
+ },
+ {
+  "ats": "ashby",
+  "token": "proxima-fusion",
+  "name": "Proxima Fusion"
+ },
+ {
+  "ats": "ashby",
+  "token": "forto",
+  "name": "Forto"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "BoschGroup",
+  "name": "Bosch"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "SopraSteria1",
+  "name": "Sopra Steria"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Devoteam",
+  "name": "Devoteam"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Ubisoft2",
+  "name": "Ubisoft"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Alten",
+  "name": "Alten"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Talan",
+  "name": "Talan"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Assystem",
+  "name": "Assystem"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Continental",
+  "name": "Continental"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Mazars",
+  "name": "Mazars"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Accor",
+  "name": "Accor"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Nexthink",
+  "name": "Nexthink"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "CERN",
+  "name": "Cern"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Believe",
+  "name": "Believe"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "OECD",
+  "name": "Oecd"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Keyrus",
+  "name": "Keyrus"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Artelia",
+  "name": "Artelia"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Socotec",
+  "name": "Socotec"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "DeliveryHero",
+  "name": "Delivery Hero"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Eurofins",
+  "name": "Eurofins"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "SGS",
+  "name": "Sgs"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Lesaffre",
+  "name": "Lesaffre"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Sodexo",
+  "name": "Sodexo"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Dailymotion",
+  "name": "Dailymotion"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "SaintGobain",
+  "name": "Saint-Gobain"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "LVMH",
+  "name": "Lvmh"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Thales",
+  "name": "Thales"
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "Dataiku",
+  "name": "Dataiku"
+ },
+ {
+  "ats": "workday",
+  "token": "ag",
+  "pod": "wd3",
+  "site": "Airbus",
+  "name": "Airbus"
+ },
+ {
+  "ats": "workday",
+  "token": "thales",
+  "pod": "wd3",
+  "site": "Careers",
+  "name": "Thales"
+ },
+ {
+  "ats": "workday",
+  "token": "sanofi",
+  "pod": "wd3",
+  "site": "SanofiCareers",
+  "name": "Sanofi"
+ },
+ {
+  "ats": "workday",
+  "token": "criteo",
+  "pod": "wd3",
+  "site": "Criteo_Career_Site",
+  "name": "Criteo"
+ },
+ {
+  "ats": "workday",
+  "token": "nvidia",
+  "pod": "wd5",
+  "site": "NVIDIAExternalCareerSite",
+  "name": "NVIDIA"
+ },
+ {
+  "ats": "workday",
+  "token": "alliancewd",
+  "pod": "wd3",
+  "site": "renault-group-careers",
+  "name": "Renault Group"
+ },
+ {
+  "ats": "workday",
+  "token": "michelinhr",
+  "pod": "wd3",
+  "site": "Michelin",
+  "name": "Michelin"
+ },
+ {
+  "ats": "workday",
+  "token": "valeo",
+  "pod": "wd3",
+  "site": "valeo_jobs",
+  "name": "Valeo"
+ },
+ {
+  "ats": "workday",
+  "token": "airliquidehr",
+  "pod": "wd3",
+  "site": "AirLiquideExternalCareer",
+  "name": "Air Liquide"
+ },
+ {
+  "ats": "workday",
+  "token": "roche",
+  "pod": "wd3",
+  "site": "roche-ext",
+  "name": "Roche"
+ },
+ {
+  "ats": "workday",
+  "token": "novartis",
+  "pod": "wd3",
+  "site": "Novartis_Careers",
+  "name": "Novartis"
+ },
+ {
+  "ats": "workday",
+  "token": "asml",
+  "pod": "wd3",
+  "site": "ASMLEXT1",
+  "name": "ASML"
+ },
+ {
+  "ats": "workday",
+  "token": "nxp",
+  "pod": "wd3",
+  "site": "careers",
+  "name": "NXP"
+ },
+ {
+  "ats": "workday",
+  "token": "philips",
+  "pod": "wd3",
+  "site": "jobs-and-careers",
+  "name": "Philips"
+ },
+ {
+  "ats": "workday",
+  "token": "shell",
+  "pod": "wd3",
+  "site": "ShellCareers",
+  "name": "Shell"
+ },
+ {
+  "ats": "workday",
+  "token": "hpe",
+  "pod": "wd5",
+  "site": "Jobsathpe",
+  "name": "Hewlett Packard Enterprise"
+ },
+ {
+  "ats": "workday",
+  "token": "intel",
+  "pod": "wd1",
+  "site": "External",
+  "name": "Intel"
+ },
+ {
+  "ats": "workday",
+  "token": "unilever",
+  "pod": "wd3",
+  "site": "Unilever_Experienced_Professionals",
+  "name": "Unilever"
+ },
+ {
+  "ats": "workday",
+  "token": "adobe",
+  "pod": "wd5",
+  "site": "external_experienced",
+  "name": "Adobe"
+ },
+ {
+  "ats": "workday",
+  "token": "abb",
+  "pod": "wd3",
+  "site": "External_Career_Page",
+  "name": "ABB"
+ },
+ {
+  "ats": "workday",
+  "token": "stellantis",
+  "pod": "wd3",
+  "site": "External_Career_Site_ID01",
+  "name": "Stellantis"
+ },
+ {
+  "ats": "workday",
+  "token": "valeo",
+  "pod": "wd3",
+  "site": "valeo_jobs",
+  "name": "Valeo (Egypt & Gulf)",
+  "mena": true
+ },
+ {
+  "ats": "workday",
+  "token": "mastercard",
+  "pod": "wd1",
+  "site": "CorporateCareers",
+  "name": "Mastercard (Egypt & Gulf)",
+  "mena": true
+ },
+ {
+  "ats": "workday",
+  "token": "visa",
+  "pod": "wd5",
+  "site": "Visa",
+  "name": "Visa (Egypt & Gulf)",
+  "mena": true
+ },
+ {
+  "ats": "workday",
+  "token": "citi",
+  "pod": "wd5",
+  "site": "2",
+  "name": "Citi (Egypt & Gulf)",
+  "mena": true
+ },
+ {
+  "ats": "workday",
+  "token": "pwc",
+  "pod": "wd3",
+  "site": "Global_Experienced_Careers",
+  "name": "PwC (Egypt & Gulf)",
+  "mena": true
+ },
+ {
+  "ats": "workday",
+  "token": "gevernova",
+  "pod": "wd5",
+  "site": "Vernova_ExternalSite",
+  "name": "GE Vernova (Egypt & Gulf)",
+  "mena": true
+ }
+]

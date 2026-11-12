@@ -1,0 +1,1124 @@
+[
+ {
+  "name": "ALMAnaCH — Inria Paris",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "NLP, French and multilingual language models, digital humanities",
+  "url": "https://almanach.inria.fr/",
+  "lead": "Benoît Sagot",
+  "note": "Internships are posted on jobs.inria.fr (already scanned) and answered through spontaneous applications."
+ },
+ {
+  "name": "ISIR — MLIA team (Sorbonne Université)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Machine learning, NLP, information retrieval",
+  "url": "https://www.isir.upmc.fr/",
+  "note": "M2 / final-year internship topics are published each autumn."
+ },
+ {
+  "name": "LISN (Université Paris-Saclay, CNRS)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Orsay",
+  "focus": "Language sciences and technologies, speech, machine learning",
+  "url": "https://www.lisn.upsaclay.fr/",
+  "note": "Large NLP department; look at the job and internship page of each team."
+ },
+ {
+  "name": "LORIA (Nancy)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Nancy",
+  "focus": "NLP (Synalp, SMarT), speech (Multispeech), knowledge",
+  "url": "https://www.loria.fr/",
+  "note": "SMarT works on Arabic dialects and machine translation."
+ },
+ {
+  "name": "IRISA (Rennes)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Rennes",
+  "focus": "NLP, multimedia linking, information retrieval",
+  "url": "https://www.irisa.fr/",
+  "note": "Joint Inria/CNRS lab; internships via jobs.inria.fr and team pages."
+ },
+ {
+  "name": "LIG — GETALP (Grenoble)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Grenoble",
+  "focus": "Multilingual NLP, speech, low-resource languages",
+  "url": "https://www.liglab.fr/",
+  "note": "Part of the MIAI Grenoble AI institute."
+ },
+ {
+  "name": "IRIT (Toulouse)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Toulouse",
+  "focus": "Information retrieval (IRIS), NLP and reasoning (MELODI)",
+  "url": "https://www.irit.fr/",
+  "note": "Linked to the ANITI institute."
+ },
+ {
+  "name": "LIRIS (Lyon)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Lyon",
+  "focus": "Data science, machine learning, knowledge",
+  "url": "https://liris.cnrs.fr/",
+  "note": "Publishes M2 internship topics every autumn."
+ },
+ {
+  "name": "LIS (Marseille)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Marseille",
+  "focus": "NLP (TALEP), machine learning (QARMA)",
+  "url": "https://www.lis-lab.fr/",
+  "note": ""
+ },
+ {
+  "name": "LIA (Avignon Université)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Avignon",
+  "focus": "Speech and language processing",
+  "url": "https://lia.univ-avignon.fr/",
+  "note": ""
+ },
+ {
+  "name": "LIPN (Université Sorbonne Paris Nord)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Villetaneuse",
+  "focus": "NLP and knowledge representation (RCLN), machine learning (A3)",
+  "url": "https://lipn.univ-paris13.fr/",
+  "note": ""
+ },
+ {
+  "name": "LS2N (Nantes)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Nantes",
+  "focus": "NLP (TALN team), data science",
+  "url": "https://www.ls2n.fr/",
+  "note": ""
+ },
+ {
+  "name": "CRIStAL (Lille)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Lille",
+  "focus": "Machine learning, NLP (MAGNET, Scool with Inria Lille)",
+  "url": "https://www.cristal.univ-lille.fr/",
+  "note": ""
+ },
+ {
+  "name": "EURECOM — Data Science department",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Sophia Antipolis",
+  "focus": "LLMs, RAG, data management, machine learning",
+  "url": "https://www.eurecom.fr/",
+  "note": "Research internships are hosted by individual faculty members: write to the one whose work matches yours."
+ },
+ {
+  "name": "Télécom Paris — LTCI",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "Machine learning, NLP, social computing",
+  "url": "https://www.telecom-paris.fr/",
+  "note": ""
+ },
+ {
+  "name": "LAMSADE (Université Paris Dauphine-PSL)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Machine learning (MILES), decision science",
+  "url": "https://www.lamsade.dauphine.fr/",
+  "note": ""
+ },
+ {
+  "name": "CEA List",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "Trustworthy AI, NLP, vision",
+  "url": "https://www.emploi.cea.fr/",
+  "note": "Internships are listed on emploi.cea.fr (already scanned)."
+ },
+ {
+  "name": "Hi! PARIS (IP Paris & HEC)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "AI and data science research centre",
+  "url": "https://www.hi-paris.fr/",
+  "note": "Research centre; internships are hosted by its affiliated labs."
+ },
+ {
+  "name": "PRAIRIE — Paris AI Research Institute",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Core AI research across Inria, ENS, PSL",
+  "url": "https://prairie-institute.fr/",
+  "note": ""
+ },
+ {
+  "name": "MIAI Grenoble Alpes",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Grenoble",
+  "focus": "AI institute — NLP, ML, AI for society",
+  "url": "https://miai.univ-grenoble-alpes.fr/",
+  "note": ""
+ },
+ {
+  "name": "ANITI (Toulouse)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Toulouse",
+  "focus": "Trustworthy and hybrid AI",
+  "url": "https://aniti.univ-toulouse.fr/",
+  "note": ""
+ },
+ {
+  "name": "3IA Côte d'Azur",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Sophia Antipolis",
+  "focus": "AI institute — core AI, health, smart territories",
+  "url": "https://3ia.univ-cotedazur.eu/",
+  "note": ""
+ },
+ {
+  "name": "SCAI — Sorbonne Center for AI",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "AI research centre of Sorbonne Université",
+  "url": "https://scai.sorbonne-universite.fr/",
+  "note": ""
+ },
+ {
+  "name": "IRT SystemX",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "Applied AI, trustworthy AI, data science",
+  "url": "https://www.irt-systemx.fr/",
+  "note": "Industrial research institute; publishes 6-month internship topics each autumn."
+ },
+ {
+  "name": "IRT Saint Exupéry",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Toulouse",
+  "focus": "Applied AI for aerospace and systems",
+  "url": "https://www.irt-saintexupery.com/",
+  "note": ""
+ },
+ {
+  "name": "ONERA",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "Aerospace research — AI, data, optimisation",
+  "url": "https://www.onera.fr/",
+  "note": "Defence-related: many topics carry nationality restrictions, check each offer."
+ },
+ {
+  "name": "NAVER LABS Europe",
+  "kind": "company",
+  "country": "FR",
+  "city": "Meylan (Grenoble)",
+  "focus": "NLP, search and recommendation, vision, robotics",
+  "url": "https://europe.naverlabs.com/careers/",
+  "note": "Research internships year-round."
+ },
+ {
+  "name": "Mistral AI",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Large language models",
+  "url": "https://mistral.ai/careers",
+  "note": "Internships appear on the careers page."
+ },
+ {
+  "name": "Hugging Face",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Open-source ML and NLP",
+  "url": "https://apply.workable.com/huggingface/",
+  "note": ""
+ },
+ {
+  "name": "Kyutai",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Open-science AI lab — speech, multimodal LLMs",
+  "url": "https://kyutai.org/",
+  "note": ""
+ },
+ {
+  "name": "Criteo AI Lab",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Recommendation, NLP, large-scale ML",
+  "url": "https://ailab.criteo.com/",
+  "note": "Research-intern openings are also picked up from Criteo's Workday board."
+ },
+ {
+  "name": "Illuin Technology",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "NLP, document AI, conversational agents",
+  "url": "https://www.illuin.tech/",
+  "note": ""
+ },
+ {
+  "name": "LightOn",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Enterprise generative AI, retrieval",
+  "url": "https://www.lighton.ai/",
+  "note": ""
+ },
+ {
+  "name": "Giskard",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "LLM evaluation and testing",
+  "url": "https://www.giskard.ai/",
+  "note": ""
+ },
+ {
+  "name": "Lingua Custodia",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Financial NLP and machine translation",
+  "url": "https://www.linguacustodia.finance/",
+  "note": ""
+ },
+ {
+  "name": "Doctrine",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Legal NLP and search",
+  "url": "https://www.doctrine.fr/",
+  "note": ""
+ },
+ {
+  "name": "LINAGORA",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Open-source LLMs and speech (LinTO)",
+  "url": "https://linagora.com/",
+  "note": ""
+ },
+ {
+  "name": "Orange — Innovation",
+  "kind": "company",
+  "country": "FR",
+  "city": "Châtillon / Lannion",
+  "focus": "NLP, dialogue, data and AI research",
+  "url": "https://orange.jobs/",
+  "note": "Publishes many AI, NLP and data internships each autumn."
+ },
+ {
+  "name": "EDF R&D",
+  "kind": "company",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "Data science, NLP for industrial documents, forecasting",
+  "url": "https://www.edf.fr/edf-recrute",
+  "note": ""
+ },
+ {
+  "name": "Société Générale",
+  "kind": "company",
+  "country": "FR",
+  "city": "La Défense",
+  "focus": "Data, AI and automation in banking",
+  "url": "https://careers.societegenerale.com/",
+  "note": "You already interned at Société Générale Algérie — say so in the application."
+ },
+ {
+  "name": "BNP Paribas",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "Data science and AI in banking",
+  "url": "https://group.bnpparibas/emploi-carriere",
+  "note": ""
+ },
+ {
+  "name": "Sony Computer Science Laboratories — Paris",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "AI for creativity, language, sustainability",
+  "url": "https://csl.sony.fr/",
+  "note": ""
+ },
+ {
+  "name": "Google DeepMind",
+  "kind": "company",
+  "country": "FR",
+  "city": "Paris / London / Zurich",
+  "focus": "AI research",
+  "url": "https://deepmind.google/careers/",
+  "note": "Student-researcher roles mostly target MSc/PhD students."
+ },
+ {
+  "name": "Sapienza NLP (Sapienza University of Rome)",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Rome",
+  "focus": "Multilingual NLP, word sense disambiguation, LLMs",
+  "url": "https://nlp.uniroma1.it/",
+  "lead": "Roberto Navigli",
+  "note": ""
+ },
+ {
+  "name": "Fondazione Bruno Kessler (FBK)",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Trento",
+  "focus": "Machine translation, NLP, digital health, AI",
+  "url": "https://jobs.fbk.eu/Internships/",
+  "note": "Internship and thesis calls are already scanned."
+ },
+ {
+  "name": "Istituto Italiano di Tecnologia (IIT)",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Genoa",
+  "focus": "Machine learning, robotics, computational sciences",
+  "url": "https://www.iit.it/",
+  "note": ""
+ },
+ {
+  "name": "CNR-ISTI (Pisa)",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Pisa",
+  "focus": "Information retrieval, AI, knowledge discovery",
+  "url": "https://www.isti.cnr.it/",
+  "note": ""
+ },
+ {
+  "name": "ItaliaNLP Lab (ILC-CNR)",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Pisa",
+  "focus": "Computational linguistics and NLP",
+  "url": "http://www.italianlp.it/",
+  "note": ""
+ },
+ {
+  "name": "MilaNLP (Bocconi University)",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Milan",
+  "focus": "NLP and computational social science",
+  "url": "https://milanlproc.github.io/",
+  "lead": "Dirk Hovy",
+  "note": ""
+ },
+ {
+  "name": "University of Trento — DISI",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Trento",
+  "focus": "NLP, machine learning, multimodal AI",
+  "url": "https://www.disi.unitn.it/",
+  "note": ""
+ },
+ {
+  "name": "Politecnico di Milano — DEIB",
+  "kind": "lab",
+  "country": "IT",
+  "city": "Milan",
+  "focus": "Data science, machine learning, recommender systems",
+  "url": "https://www.deib.polimi.it/",
+  "note": ""
+ },
+ {
+  "name": "Translated",
+  "kind": "company",
+  "country": "IT",
+  "city": "Rome",
+  "focus": "Machine translation, language AI",
+  "url": "https://translated.com/",
+  "note": ""
+ },
+ {
+  "name": "Bending Spoons",
+  "kind": "company",
+  "country": "IT",
+  "city": "Milan",
+  "focus": "Data science and ML for consumer products",
+  "url": "https://bendingspoons.com/careers",
+  "note": "English working language."
+ },
+ {
+  "name": "iGenius",
+  "kind": "company",
+  "country": "IT",
+  "city": "Milan",
+  "focus": "Enterprise LLMs",
+  "url": "https://www.igenius.ai/",
+  "note": ""
+ },
+ {
+  "name": "expert.ai",
+  "kind": "company",
+  "country": "IT",
+  "city": "Modena",
+  "focus": "NLP and knowledge-based language understanding",
+  "url": "https://www.expert.ai/",
+  "note": ""
+ },
+ {
+  "name": "Almawave",
+  "kind": "company",
+  "country": "IT",
+  "city": "Rome",
+  "focus": "Italian LLMs, speech, data governance",
+  "url": "https://www.almawave.com/",
+  "note": ""
+ },
+ {
+  "name": "LIIR — KU Leuven",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Leuven",
+  "focus": "Language intelligence and information retrieval",
+  "url": "https://liir.cs.kuleuven.be/",
+  "lead": "Marie-Francine Moens",
+  "note": ""
+ },
+ {
+  "name": "CENTAL — UCLouvain",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Louvain-la-Neuve",
+  "focus": "NLP, French-language technologies",
+  "url": "https://uclouvain.be/en/research-institutes/ilc/cental",
+  "note": "French-speaking lab."
+ },
+ {
+  "name": "ICTEAM — UCLouvain",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Louvain-la-Neuve",
+  "focus": "Machine learning, data science",
+  "url": "https://uclouvain.be/en/research-institutes/icteam",
+  "note": ""
+ },
+ {
+  "name": "IRIDIA — ULB",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Brussels",
+  "focus": "AI, optimisation, swarm intelligence",
+  "url": "https://iridia.ulb.ac.be/",
+  "note": ""
+ },
+ {
+  "name": "AI Lab — VUB",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Brussels",
+  "focus": "AI, language evolution, reinforcement learning",
+  "url": "https://ai.vub.ac.be/",
+  "note": ""
+ },
+ {
+  "name": "CLiPS — University of Antwerp",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Antwerp",
+  "focus": "Computational linguistics and NLP",
+  "url": "https://www.uantwerpen.be/en/research-groups/clips/",
+  "note": ""
+ },
+ {
+  "name": "IDLab — Ghent University / imec",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Ghent",
+  "focus": "Text-to-knowledge, NLP, machine learning",
+  "url": "https://idlab.ugent.be/",
+  "note": ""
+ },
+ {
+  "name": "imec",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Leuven",
+  "focus": "AI and data science for hardware and health",
+  "url": "https://www.imec-int.com/en/work-at-imec",
+  "note": "Publishes a catalogue of master-thesis and internship topics each year."
+ },
+ {
+  "name": "FARI — AI for the Common Good Institute",
+  "kind": "lab",
+  "country": "BE",
+  "city": "Brussels",
+  "focus": "Applied AI (ULB & VUB)",
+  "url": "https://www.fari.brussels/",
+  "note": ""
+ },
+ {
+  "name": "ML6",
+  "kind": "company",
+  "country": "BE",
+  "city": "Ghent",
+  "focus": "Applied machine learning and NLP consultancy",
+  "url": "https://www.ml6.eu/",
+  "note": ""
+ },
+ {
+  "name": "UKP Lab — TU Darmstadt",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Darmstadt",
+  "focus": "NLP, argument mining, LLM evaluation",
+  "url": "https://www.informatik.tu-darmstadt.de/ukp/ukp_home/index.en.jsp",
+  "lead": "Iryna Gurevych",
+  "note": ""
+ },
+ {
+  "name": "DFKI — German Research Center for AI",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Saarbrücken / Kaiserslautern / Berlin",
+  "focus": "Language technology, multilinguality, applied AI",
+  "url": "https://www.dfki.de/en/web",
+  "note": ""
+ },
+ {
+  "name": "CIS — LMU Munich",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Munich",
+  "focus": "NLP, multilingual representation learning",
+  "url": "https://www.cis.lmu.de/",
+  "note": ""
+ },
+ {
+  "name": "Max Planck Institute for Intelligent Systems",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Tübingen / Stuttgart",
+  "focus": "Machine learning, empirical inference",
+  "url": "https://is.mpg.de/career",
+  "note": ""
+ },
+ {
+  "name": "Max Planck Institute for Software Systems",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Saarbrücken / Kaiserslautern",
+  "focus": "ML, NLP, social computing",
+  "url": "https://www.mpi-sws.org/",
+  "note": "Runs a paid research-internship programme open year-round."
+ },
+ {
+  "name": "CISPA Helmholtz Center",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Saarbrücken",
+  "focus": "Trustworthy ML, security",
+  "url": "https://jobs.cispa.saarland/",
+  "note": ""
+ },
+ {
+  "name": "Bosch Center for Artificial Intelligence",
+  "kind": "company",
+  "country": "DE",
+  "city": "Renningen",
+  "focus": "Applied AI research",
+  "url": "https://www.bosch.com/research/",
+  "note": "Thesis and internship openings are scanned from Bosch's job board."
+ },
+ {
+  "name": "Fraunhofer IAIS",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Sankt Augustin",
+  "focus": "NLP, LLMs, knowledge graphs",
+  "url": "https://www.iais.fraunhofer.de/en.html",
+  "note": ""
+ },
+ {
+  "name": "Hasso Plattner Institute",
+  "kind": "lab",
+  "country": "DE",
+  "city": "Potsdam",
+  "focus": "Data engineering, AI",
+  "url": "https://hpi.de/en/",
+  "note": ""
+ },
+ {
+  "name": "ELLIS job board",
+  "kind": "board",
+  "country": "DE",
+  "city": "Europe-wide",
+  "focus": "European Lab for Learning and Intelligent Systems openings",
+  "url": "https://ellis.eu/jobs",
+  "note": ""
+ },
+ {
+  "name": "SnT — University of Luxembourg",
+  "kind": "lab",
+  "country": "LU",
+  "city": "Luxembourg",
+  "focus": "Trustworthy software, NLP, data science with industry partners",
+  "url": "https://www.uni.lu/snt-en/",
+  "note": "English and French working languages; hosts many master-thesis interns."
+ },
+ {
+  "name": "LIST — Luxembourg Institute of Science and Technology",
+  "kind": "lab",
+  "country": "LU",
+  "city": "Esch-sur-Alzette",
+  "focus": "Data science, AI, language technologies",
+  "url": "https://www.list.lu/",
+  "note": ""
+ },
+ {
+  "name": "Idiap Research Institute",
+  "kind": "lab",
+  "country": "CH",
+  "city": "Martigny",
+  "focus": "Speech, NLP, machine learning",
+  "url": "https://www.idiap.ch/en/join-us/job-opportunities",
+  "note": "French-speaking canton; regular internship openings."
+ },
+ {
+  "name": "EPFL — research internships",
+  "kind": "programme",
+  "country": "CH",
+  "city": "Lausanne",
+  "focus": "Research internships in EPFL labs (incl. Excellence Research Internship Program)",
+  "url": "https://www.epfl.ch/education/international/en/coming-to-epfl/research-internships/",
+  "note": "The funded programme is mostly a summer scheme — check the dates against a January start."
+ },
+ {
+  "name": "ETH AI Center",
+  "kind": "lab",
+  "country": "CH",
+  "city": "Zurich",
+  "focus": "AI research",
+  "url": "https://ai.ethz.ch/",
+  "note": ""
+ },
+ {
+  "name": "IBM Research Europe — Zurich",
+  "kind": "company",
+  "country": "CH",
+  "city": "Rüschlikon",
+  "focus": "AI, NLP, foundation models",
+  "url": "https://www.zurich.ibm.com/careers/",
+  "note": ""
+ },
+ {
+  "name": "IRLab — University of Amsterdam",
+  "kind": "lab",
+  "country": "NL",
+  "city": "Amsterdam",
+  "focus": "Information retrieval, conversational search",
+  "url": "https://irlab.science.uva.nl/",
+  "note": ""
+ },
+ {
+  "name": "CWI",
+  "kind": "lab",
+  "country": "NL",
+  "city": "Amsterdam",
+  "focus": "Machine learning, databases, algorithms",
+  "url": "https://www.cwi.nl/en/jobs/",
+  "note": ""
+ },
+ {
+  "name": "HiTZ — Basque Center for Language Technology",
+  "kind": "lab",
+  "country": "ES",
+  "city": "Donostia / San Sebastián",
+  "focus": "NLP, low-resource languages, LLMs",
+  "url": "https://www.hitz.eus/en",
+  "note": ""
+ },
+ {
+  "name": "Barcelona Supercomputing Center",
+  "kind": "lab",
+  "country": "ES",
+  "city": "Barcelona",
+  "focus": "Language technologies, AI at scale",
+  "url": "https://www.bsc.es/join-us/job-opportunities",
+  "note": "Job board already scanned."
+ },
+ {
+  "name": "INESC-ID",
+  "kind": "lab",
+  "country": "PT",
+  "city": "Lisbon",
+  "focus": "Human language technologies",
+  "url": "https://www.inesc-id.pt/",
+  "note": ""
+ },
+ {
+  "name": "Unbabel",
+  "kind": "company",
+  "country": "PT",
+  "city": "Lisbon",
+  "focus": "Machine translation, quality estimation",
+  "url": "https://unbabel.com/",
+  "note": ""
+ },
+ {
+  "name": "ISTA — Institute of Science and Technology Austria",
+  "kind": "programme",
+  "country": "AT",
+  "city": "Klosterneuburg",
+  "focus": "Research internships in ML and data science groups",
+  "url": "https://ista.ac.at/en/education/",
+  "note": "The ISTernship is a paid programme, mainly in summer."
+ },
+ {
+  "name": "ÚFAL — Charles University",
+  "kind": "lab",
+  "country": "CZ",
+  "city": "Prague",
+  "focus": "Computational linguistics, machine translation",
+  "url": "https://ufal.mff.cuni.cz/",
+  "note": ""
+ },
+ {
+  "name": "ADAPT Centre",
+  "kind": "lab",
+  "country": "IE",
+  "city": "Dublin",
+  "focus": "Language technology, machine translation",
+  "url": "https://www.adaptcentre.ie/",
+  "note": ""
+ },
+ {
+  "name": "ILCC — University of Edinburgh",
+  "kind": "lab",
+  "country": "GB",
+  "city": "Edinburgh",
+  "focus": "NLP, computational linguistics",
+  "url": "https://web.inf.ed.ac.uk/ilcc",
+  "note": "UK visa rules for short internships are restrictive — confirm with the host."
+ },
+ {
+  "name": "CoAStaL NLP — University of Copenhagen",
+  "kind": "lab",
+  "country": "DK",
+  "city": "Copenhagen",
+  "focus": "NLP, multilingual and fair language models",
+  "url": "https://coastalcph.github.io/",
+  "note": ""
+ },
+ {
+  "name": "KAUST — Visiting Student Research Program",
+  "kind": "programme",
+  "country": "SA",
+  "city": "Thuwal",
+  "focus": "Funded research internships (2–6 months) in 100+ faculty projects",
+  "url": "https://admissions.kaust.edu.sa/study/internships",
+  "note": "Open year-round to senior bachelor's and master's students; covers housing, flights and a monthly stipend. Projects are already scanned."
+ },
+ {
+  "name": "MBZUAI — Mohamed bin Zayed University of AI",
+  "kind": "lab",
+  "country": "AE",
+  "city": "Abu Dhabi",
+  "focus": "NLP (incl. Arabic), machine learning, computer vision",
+  "url": "https://mbzuai.ac.ae/",
+  "note": "Runs research-internship and visiting-student schemes; check the NLP department pages."
+ },
+ {
+  "name": "CAMeL Lab — NYU Abu Dhabi",
+  "kind": "lab",
+  "country": "AE",
+  "city": "Abu Dhabi",
+  "focus": "Arabic NLP and dialects",
+  "url": "https://nyuad.nyu.edu/en/research/faculty-labs-and-projects/computational-approaches-to-modeling-language-lab.html",
+  "lead": "Nizar Habash",
+  "note": "Your trilingual Arabic/French/English RAG work is directly relevant."
+ },
+ {
+  "name": "Technology Innovation Institute (TII)",
+  "kind": "lab",
+  "country": "AE",
+  "city": "Abu Dhabi",
+  "focus": "LLMs (Falcon), AI and digital science",
+  "url": "https://www.tii.ae/careers",
+  "note": ""
+ },
+ {
+  "name": "Khalifa University",
+  "kind": "lab",
+  "country": "AE",
+  "city": "Abu Dhabi",
+  "focus": "AI, data science, robotics",
+  "url": "https://www.ku.ac.ae/",
+  "note": ""
+ },
+ {
+  "name": "G42",
+  "kind": "company",
+  "country": "AE",
+  "city": "Abu Dhabi",
+  "focus": "AI group — Core42, Inception, Arabic LLMs",
+  "url": "https://www.g42.ai/",
+  "note": ""
+ },
+ {
+  "name": "AI71",
+  "kind": "company",
+  "country": "AE",
+  "city": "Abu Dhabi",
+  "focus": "Applied LLM products",
+  "url": "https://ai71.ai/",
+  "note": ""
+ },
+ {
+  "name": "Qatar Computing Research Institute (QCRI)",
+  "kind": "lab",
+  "country": "QA",
+  "city": "Doha",
+  "focus": "Arabic language technologies, social computing, data analytics",
+  "url": "https://www.hbku.edu.qa/en/qcri",
+  "note": "Has an internship scheme for undergraduate and graduate students."
+ },
+ {
+  "name": "SDAIA — Saudi Data and AI Authority",
+  "kind": "lab",
+  "country": "SA",
+  "city": "Riyadh",
+  "focus": "National AI programmes, Arabic LLMs",
+  "url": "https://sdaia.gov.sa/en/",
+  "note": ""
+ },
+ {
+  "name": "KFUPM",
+  "kind": "lab",
+  "country": "SA",
+  "city": "Dhahran",
+  "focus": "AI research (SDAIA-KFUPM Joint Research Center)",
+  "url": "https://www.kfupm.edu.sa/",
+  "note": ""
+ },
+ {
+  "name": "Lucidya",
+  "kind": "company",
+  "country": "SA",
+  "city": "Riyadh",
+  "focus": "Arabic NLP for customer-experience analytics",
+  "url": "https://lucidya.com/",
+  "note": "Close to your complaint-classification work at ECCBC."
+ },
+ {
+  "name": "Mozn",
+  "kind": "company",
+  "country": "SA",
+  "city": "Riyadh",
+  "focus": "Arabic NLP and enterprise AI",
+  "url": "https://www.mozn.sa/",
+  "note": ""
+ },
+ {
+  "name": "Aramco",
+  "kind": "company",
+  "country": "SA",
+  "city": "Dhahran",
+  "focus": "Industrial AI and data science",
+  "url": "https://www.aramco.com/en/careers",
+  "note": "Close to your drilling-fluid formulation work at KABAS."
+ },
+ {
+  "name": "Applied Innovation Center (MCIT)",
+  "kind": "lab",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Arabic NLP, speech, applied AI",
+  "url": "https://aic.gov.eg/",
+  "note": ""
+ },
+ {
+  "name": "Nile University",
+  "kind": "lab",
+  "country": "EG",
+  "city": "Giza",
+  "focus": "AI and data-science research centres",
+  "url": "https://nu.edu.eg/",
+  "note": ""
+ },
+ {
+  "name": "The American University in Cairo",
+  "kind": "lab",
+  "country": "EG",
+  "city": "New Cairo",
+  "focus": "Computer science and data science research",
+  "url": "https://www.aucegypt.edu/",
+  "note": ""
+ },
+ {
+  "name": "Zewail City of Science and Technology",
+  "kind": "lab",
+  "country": "EG",
+  "city": "Giza",
+  "focus": "AI and communications research",
+  "url": "https://www.zewailcity.edu.eg/",
+  "note": ""
+ },
+ {
+  "name": "Microsoft — Egypt",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Arabic language technologies and applied science",
+  "url": "https://careers.microsoft.com/",
+  "note": "Search the careers site for Cairo internships."
+ },
+ {
+  "name": "Valeo — Egypt",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Automotive software and AI R&D centre",
+  "url": "https://www.valeo.com/en/find-a-job-or-internship/",
+  "note": "Valeo's board is scanned; Egyptian internships appear there."
+ },
+ {
+  "name": "Siemens — Egypt",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "EDA software, ML for chip design",
+  "url": "https://jobs.siemens.com/",
+  "note": ""
+ },
+ {
+  "name": "Vodafone Intelligent Solutions (VOIS)",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Data, analytics and AI centre of excellence",
+  "url": "https://careers.vodafone.com/",
+  "note": ""
+ },
+ {
+  "name": "IBM — Egypt",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "AI and data consulting, client innovation centre",
+  "url": "https://www.ibm.com/careers",
+  "note": ""
+ },
+ {
+  "name": "Dell Technologies — Egypt",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Data science and software centre of excellence",
+  "url": "https://jobs.dell.com/",
+  "note": ""
+ },
+ {
+  "name": "Synapse Analytics",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Applied AI and data-science products",
+  "url": "https://www.synapse-analytics.io/",
+  "note": ""
+ },
+ {
+  "name": "WideBot",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Arabic conversational AI",
+  "url": "https://widebot.net/",
+  "note": ""
+ },
+ {
+  "name": "DXwand",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Arabic conversational AI and knowledge mining",
+  "url": "https://dxwand.com/",
+  "note": ""
+ },
+ {
+  "name": "Giza Systems",
+  "kind": "company",
+  "country": "EG",
+  "city": "Cairo",
+  "focus": "Data and AI systems integration",
+  "url": "https://www.gizasystems.com/",
+  "note": ""
+ },
+ {
+  "name": "Brightskies",
+  "kind": "company",
+  "country": "EG",
+  "city": "Alexandria",
+  "focus": "AI, HPC and automotive software",
+  "url": "https://brightskiesinc.com/",
+  "note": ""
+ },
+ {
+  "name": "France-Visas (official visa portal)",
+  "kind": "admin",
+  "country": "FR",
+  "city": "",
+  "focus": "Visa requirements for an internship in France",
+  "url": "https://france-visas.gouv.fr/",
+  "note": "Use the visa wizard with “stagiaire / internship”: the internship agreement normally has to be validated by the French authorities before the visa application, so start as soon as a host says yes."
+ },
+ {
+  "name": "Campus France Algérie",
+  "kind": "admin",
+  "country": "FR",
+  "city": "",
+  "focus": "Official information point for Algerian students going to France",
+  "url": "https://www.algerie.campusfrance.org/",
+  "note": ""
+ },
+ {
+  "name": "EURAXESS — researcher mobility portal",
+  "kind": "board",
+  "country": "BE",
+  "city": "Europe-wide",
+  "focus": "Research jobs and hosting offers across Europe",
+  "url": "https://euraxess.ec.europa.eu/jobs/search",
+  "note": ""
+ }
+]

@@ -1,0 +1,4 @@
+# Internship Radar — runtime dependencies
+requests>=2.31
+lxml>=5.0
+fpdf2>=2.7

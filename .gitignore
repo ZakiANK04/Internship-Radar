@@ -1,0 +1,32 @@
+# Local Python environment and caches
+/venv/
+/.venv/
+__pycache__/
+*.py[cod]
+
+# Personal profile and mail settings
+/radar/local_profile.py
+/.env
+/.env.*
+!/.env.example
+
+# Local tracker data, documents, and generated files
+/data/
+/legacy/
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+*.pdf
+*.docx
+*.xlsx
+*.xls
+*.jpg
+*.jpeg
+*.png
+*.log
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
