@@ -22,6 +22,8 @@ class RawOffer:
     remote: bool = False
     trusted_internship: bool = False
     contacts: list[dict] = field(default_factory=list)
+    salary: Optional[dict] = None  # structured pay published by the source: {min, max, currency, period}
+    pay_hint: str = ""  # short text from the listing that mentions pay (e.g. a salary badge)
 
 
 @dataclass

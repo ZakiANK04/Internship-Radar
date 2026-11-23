@@ -5,7 +5,7 @@
   "name": "IMC Trading"
  },
  {
-  "ats": "greenhouse",
+  "ats": "ashby",
   "token": "doctolib",
   "name": "Doctolib"
  },
@@ -348,11 +348,6 @@
   "ats": "lever",
   "token": "theodo",
   "name": "Theodo"
- },
- {
-  "ats": "lever",
-  "token": "aircall",
-  "name": "Aircall"
  },
  {
   "ats": "lever",
@@ -825,16 +820,6 @@
   "name": "Lvmh"
  },
  {
-  "ats": "smartrecruiters",
-  "token": "Thales",
-  "name": "Thales"
- },
- {
-  "ats": "smartrecruiters",
-  "token": "Dataiku",
-  "name": "Dataiku"
- },
- {
   "ats": "workday",
   "token": "ag",
   "pod": "wd3",
@@ -1028,5 +1013,10 @@
   "site": "Vernova_ExternalSite",
   "name": "GE Vernova (Egypt & Gulf)",
   "mena": true
+ },
+ {
+  "ats": "smartrecruiters",
+  "token": "cern",
+  "name": "CERN"
  }
 ]

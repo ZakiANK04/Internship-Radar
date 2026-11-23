@@ -13,6 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 PACKAGE_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "radar.db"
+DOCUMENTS_DIR = DATA_DIR / "documents"
 OUTPUT_DIR = DATA_DIR / "outputs"
 DIGEST_DIR = DATA_DIR / "digests"
 WEB_DIR = PACKAGE_DIR / "web"
@@ -68,6 +69,10 @@ DEFAULT_PRIORITIES: dict = {
     "llm_triage_per_run": 20,
     "auto_draft_per_run": 5,
     "follow_up_days": 10,
+    "outreach_drafts_per_run": 20,
+    "hide_low_grades": True,
+    "hide_ineligible": True,
+    "session_days": ["Mon", "Thu"],
     "refresh_hours": 12,
     "contact_refresh_days": 7,
     "alumni_institutions": {"I2802493600": "École Nationale Polytechnique (Algiers)"},

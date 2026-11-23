@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from radar import config, db, mailer, pipeline  # noqa: E402
+from radar import config, db, documents, mailer, pipeline  # noqa: E402
 
 PASSWORDS = {"primary@school.test": "right-primary", "fallback@mail.test": "right-fallback"}
 RECEIVED: list[tuple[str, list[str], bytes]] = []
@@ -27,42 +27,50 @@ class _Handler(socketserver.StreamRequestHandler):
     """Just enough SMTP for smtplib: EHLO, AUTH PLAIN, MAIL, RCPT, DATA, QUIT."""
 
     def handle(self) -> None:
-        self.wfile.write(b"220 stub ready\r\n")
-        sender, recipients, user = "", [], None
-        while True:
-            line = self.rfile.readline()
-            if not line:
-                return
-            command = line.decode("utf-8", "replace").strip()
-            upper = command.upper()
-            if upper.startswith("EHLO"):
-                self.wfile.write(b"250-stub\r\n250 AUTH PLAIN\r\n")
-            elif upper.startswith("AUTH PLAIN"):
-                _, name, password = base64.b64decode(command.split()[2]).decode().split("\0")
-                if PASSWORDS.get(name) == password:
-                    user = name
-                    self.wfile.write(b"235 ok\r\n")
+        try:
+            self.wfile.write(b"220 stub ready\r\n")
+            sender, recipients, user = "", [], None
+            while True:
+                line = self.rfile.readline()
+                if not line:
+                    return
+                command = line.decode("utf-8", "replace").strip()
+                upper = command.upper()
+                if upper.startswith("EHLO"):
+                    self.wfile.write(b"250-stub\r\n250 AUTH PLAIN\r\n")
+                elif upper.startswith("AUTH PLAIN"):
+                    _, name, password = base64.b64decode(command.split()[2]).decode().split("\0")
+                    if PASSWORDS.get(name) == password:
+                        user = name
+                        self.wfile.write(b"235 ok\r\n")
+                    else:
+                        self.wfile.write(b"535 5.7.8 Username and Password not accepted\r\n")
+                elif upper.startswith("MAIL FROM"):
+                    sender = command.split(":", 1)[1].split()[0].strip("<>")
+                    self.wfile.write(b"250 ok\r\n" if user else b"530 authentication required\r\n")
+                elif upper.startswith("RCPT TO"):
+                    recipients.append(command.split(":", 1)[1].strip().strip("<>"))
+                    self.wfile.write(b"250 ok\r\n")
+                elif upper == "DATA":
+                    self.wfile.write(b"354 go\r\n")
+                    data = b""
+                    while not data.endswith(b"\r\n.\r\n"):
+                        chunk = self.rfile.readline()
+                        if not chunk:
+                            break
+                        data += chunk
+                    if data:
+                        cut = 5 if data.endswith(b"\r\n.\r\n") else 0
+                        RECEIVED.append((sender, recipients, data[:-cut] if cut else data))
+                    sender, recipients = "", []
+                    self.wfile.write(b"250 queued\r\n")
+                elif upper == "QUIT":
+                    self.wfile.write(b"221 bye\r\n")
+                    return
                 else:
-                    self.wfile.write(b"535 5.7.8 Username and Password not accepted\r\n")
-            elif upper.startswith("MAIL FROM"):
-                sender = command.split(":", 1)[1].split()[0].strip("<>")
-                self.wfile.write(b"250 ok\r\n" if user else b"530 authentication required\r\n")
-            elif upper.startswith("RCPT TO"):
-                recipients.append(command.split(":", 1)[1].strip().strip("<>"))
-                self.wfile.write(b"250 ok\r\n")
-            elif upper == "DATA":
-                self.wfile.write(b"354 go\r\n")
-                data = b""
-                while not data.endswith(b"\r\n.\r\n"):
-                    data += self.rfile.readline()
-                RECEIVED.append((sender, recipients, data[:-5]))
-                sender, recipients = "", []
-                self.wfile.write(b"250 queued\r\n")
-            elif upper == "QUIT":
-                self.wfile.write(b"221 bye\r\n")
-                return
-            else:
-                self.wfile.write(b"250 ok\r\n")
+                    self.wfile.write(b"250 ok\r\n")
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
+            return
 
 
 class MailerTests(unittest.TestCase):
@@ -70,8 +78,32 @@ class MailerTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.folder = tempfile.TemporaryDirectory()
         cls.original_db = config.DB_PATH
+        cls.original_docs_dir = config.DOCUMENTS_DIR
         config.DB_PATH = Path(cls.folder.name) / "test.db"
+        config.DOCUMENTS_DIR = Path(cls.folder.name) / "documents"
+        config.DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
         db.initialize()
+
+        # Seed isolated test CV documents
+        documents.add_document(
+            b"%PDF-1.4 test FR CV content",
+            "candidate_cv_fr.pdf",
+            title="CV (FR)",
+            doc_type="cv",
+            language="FR",
+            version="1.0",
+            is_default=True,
+        )
+        documents.add_document(
+            b"%PDF-1.4 test EN CV content",
+            "candidate_cv_en.pdf",
+            title="CV (EN)",
+            doc_type="cv",
+            language="EN",
+            version="1.0",
+            is_default=True,
+        )
+
         cls.server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), _Handler)
         cls.port = cls.server.server_address[1]
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
@@ -81,6 +113,7 @@ class MailerTests(unittest.TestCase):
         cls.server.shutdown()
         cls.server.server_close()
         config.DB_PATH = cls.original_db
+        config.DOCUMENTS_DIR = cls.original_docs_dir
         cls.folder.cleanup()
 
     def setUp(self) -> None:

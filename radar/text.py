@@ -67,7 +67,7 @@ def guess_language(text: str) -> str:
     return max(scores, key=scores.get)
 
 
-_EMAIL = re.compile(r"(?<![%A-Za-z0-9._+-])[A-Za-z0-9][A-Za-z0-9._+-]{0,63}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+_EMAIL = re.compile(r"(?<![%A-Za-z0-9._+-])[A-Za-z0-9][A-Za-z0-9._+-]{0,63}@[A-Za-z0-9-]{1,40}(?:\.[A-Za-z0-9-]{1,40}){0,4}\.[A-Za-z]{2,6}(?![A-Za-z0-9-])")
 _OBFUSCATED = re.compile(
     r"([A-Za-z0-9][A-Za-z0-9._-]{1,40})\s*(?:\[at\]|\(at\)|\{at\}|\sat\s|\[arobase\]|\(arobase\))\s*"
     r"([A-Za-z0-9-]+(?:\s*(?:\[dot\]|\(dot\)|\sdot\s|\.)\s*[A-Za-z0-9-]+)+)",
@@ -77,7 +77,7 @@ _GENERIC_MAILBOX = re.compile(r"^(no-?reply|noreply|donotreply|privacy|dpo|gdpr|
 # Anti-spam decoys such as "name@myinstitutionname.fr" or "first.last@domain.com" are not addresses.
 _PLACEHOLDER_DOMAIN = re.compile(
     r"(myinstitution|institutionname|yourdomain|mydomain|example|domain\.(com|org|fr)$|^email\.|nospam|no-spam|removethis|"
-    r"remove-this|invalid|localhost|sentry|wixpress|company\.com$|universit[ey]\.(edu|fr|com)$|lab\.(fr|com|org)$)", re.I)
+    r"remove-this|invalid|localhost|sentry|wixpress|company\.com$|^(?:universit[ey]|lab|domain|company)\.(?:edu|fr|com|org)$)", re.I)
 
 
 def extract_emails(text: str) -> list[str]:
@@ -89,6 +89,10 @@ def extract_emails(text: str) -> list[str]:
     for email in found:
         local, domain = email.split("@", 1)
         if _GENERIC_MAILBOX.search(local) or email.endswith((".png", ".jpg", ".gif", ".svg", ".webp")):
+            continue
+        # Two addresses printed back to back ("a@x.frb@x.fr") produce a mailbox containing the domain: not real.
+        label = domain.split(".")[0]
+        if len(label) >= 4 and label in local.lower():
             continue
         if _PLACEHOLDER_DOMAIN.search(domain) or re.search(r"(firstname|lastname|surname|prenom|^nom$|^name$)", local):
             continue
@@ -268,10 +272,10 @@ _CITIES: dict[str, tuple[str, ...]] = {
     "HR": ("zagreb",),
     "SI": ("ljubljana",),
     "SK": ("bratislava",),
-    "EG": ("cairo", "le caire", "giza", "alexandria", "new cairo", "6th of october", "maadi", "smart village",
+    "EG": ("le caire", "alexandrie", "cairo", "le caire", "giza", "alexandria", "new cairo", "6th of october", "maadi", "smart village",
            "nasr city", "heliopolis", "sheikh zayed"),
-    "AE": ("dubai", "abu dhabi", "sharjah", "masdar", "al ain", "ras al khaimah", "ajman"),
-    "SA": ("riyadh", "jeddah", "dhahran", "thuwal", "khobar", "al khobar", "dammam", "neom", "jubail"),
+    "AE": ("abou dhabi", "doubai", "dubai", "abu dhabi", "sharjah", "masdar", "al ain", "ras al khaimah", "ajman"),
+    "SA": ("riyad", "djeddah", "riyadh", "jeddah", "dhahran", "thuwal", "khobar", "al khobar", "dammam", "neom", "jubail"),
     "QA": ("doha", "lusail", "education city"),
     "KW": ("kuwait city",),
     "BH": ("manama",),

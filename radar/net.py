@@ -7,6 +7,7 @@ so an unattended run can never turn into a request burst.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from typing import Any, Optional
@@ -26,6 +27,8 @@ HOST_INTERVALS = {
     "api.openalex.org": 0.5,
     "www.hellowork.com": 1.5,
     "arxiv.org": 3.0,
+    "www.linkedin.com": 3.0,
+    "fr.linkedin.com": 3.0,
     "generativelanguage.googleapis.com": 4.2,
 }
 
@@ -82,6 +85,9 @@ def is_cooling_down(host: str) -> bool:
 
 def request(method: str, url: str, *, timeout: float = 25, retries: int = 1, **kwargs: Any) -> requests.Response:
     host = urlparse(url).netloc
+    if host == "api.openalex.org" and os.getenv("OPENALEX_API_KEY"):
+        # A free personal key raises the shared daily budget ($0.10 per network) to $1 per day.
+        kwargs["params"] = {**(kwargs.get("params") or {}), "api_key": os.environ["OPENALEX_API_KEY"]}
     last: Optional[Exception] = None
     for attempt in range(retries + 1):
         _wait(host)
@@ -92,9 +98,9 @@ def request(method: str, url: str, *, timeout: float = 25, retries: int = 1, **k
             if attempt < retries:
                 time.sleep(1.5 * (attempt + 1))
             continue
-        if response.status_code == 429:
+        if response.status_code in (429, 999):  # 999 is LinkedIn's "too many requests"
             _gate(host).blocked_until = time.monotonic() + 600
-            raise FetchError(f"{host} rate limited this client (429)", 429)
+            raise FetchError(f"{host} rate limited this client ({response.status_code})", 429)
         if response.status_code >= 500 and attempt < retries:
             time.sleep(1.5 * (attempt + 1))
             last = FetchError(f"{response.status_code} from {host}", response.status_code)

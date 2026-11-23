@@ -20,7 +20,7 @@ from email.utils import formatdate, make_msgid
 from pathlib import Path
 from typing import Any, Optional
 
-from . import config, db
+from . import config, db, documents
 
 try:
     from .local_profile import DEFAULT_MAIL
@@ -38,6 +38,10 @@ _ADDRESS = re.compile(r"^[^@\s,;<>]+@[^@\s,;<>]+\.[A-Za-z]{2,}$")
 
 class MailError(RuntimeError):
     pass
+
+
+class Uncertain(MailError):
+    """The message may have left: do not retry it from another account."""
 
 
 # ------------------------------------------------------------------ secrets
@@ -80,15 +84,25 @@ def settings() -> dict[str, Any]:
 
 def public_settings() -> dict[str, Any]:
     """Settings for the interface: never includes a password, only whether one is stored."""
+    from . import google_mail
+
     current = settings()
     return {
         "accounts": [{"address": account["address"], "host": account["host"], "port": account["port"],
-                      "security": account["security"], "has_password": bool(account.get("secret"))}
+                      "security": account["security"], "has_password": bool(account.get("secret")),
+                      "google": google_mail.public(account)}
                      for account in current["accounts"]],
+        "google_client": google_mail.client_status(),
         "delay_hours": current["delay_hours"], "daily_cap": current["daily_cap"], "attach_letter": current["attach_letter"],
-        "ready": any(account.get("secret") and account.get("address") for account in current["accounts"]),
+        "from_alias": current.get("from_alias") or "",
+        "ready": any(usable(account) for account in current["accounts"]),
         "sent_today": sent_today(),
     }
+
+
+def usable(account: dict[str, Any]) -> bool:
+    """An account the Radar can send from: connected with Google, or with an app password."""
+    return bool(account.get("address")) and bool((account.get("oauth") or {}).get("refresh") or account.get("secret"))
 
 
 def update_settings(values: dict[str, Any]) -> dict[str, Any]:
@@ -98,6 +112,8 @@ def update_settings(values: dict[str, Any]) -> dict[str, Any]:
         address = str(incoming.get("address") or "").strip()
         if address and not _ADDRESS.match(address):
             raise MailError(f"“{address}” is not a valid e-mail address.")
+        if address.lower() != (account.get("address") or "").lower():
+            account.pop("oauth", None)  # a Google connection belongs to the address it was made for
         account["address"] = address
         for key in ("host", "security"):
             if incoming.get(key):
@@ -115,6 +131,11 @@ def update_settings(values: dict[str, Any]) -> dict[str, Any]:
         current["daily_cap"] = max(1, min(60, int(values["daily_cap"])))
     if "attach_letter" in values:
         current["attach_letter"] = bool(values["attach_letter"])
+    if "from_alias" in values:
+        alias = str(values["from_alias"] or "").strip()
+        if alias and not _ADDRESS.match(alias):
+            raise MailError(f"“{alias}” is not a valid e-mail address.")
+        current["from_alias"] = alias
     db.set_setting("mail", current)
     return public_settings()
 
@@ -197,20 +218,28 @@ def letter_filename(application: dict[str, Any]) -> str:
 
 
 def load_application(application_id: int) -> Optional[dict[str, Any]]:
-    return db.one(
+    row = db.one(
         """SELECT a.*, o.title AS offer_title, o.org AS offer_org, c.name AS contact_name, c.org AS contact_org
            FROM applications a LEFT JOIN offers o ON o.id = a.offer_id LEFT JOIN contacts c ON c.id = a.contact_id
            WHERE a.id = ?""", (application_id,))
+    if row is not None:
+        row["selected_documents"] = documents.get_application_documents(application_id)
+    return row
 
 
 def build_message(application: dict[str, Any], sender: Optional[str] = None, draft: bool = False) -> EmailMessage:
-    """The exact e-mail that is sent: short message, cover letter PDF, CV in the posting's language."""
+    """The exact e-mail that is sent: short message, cover letter PDF, and exact selected attachments."""
     profile = db.profile()
     current = settings()
     address = sender or next((account["address"] for account in current["accounts"] if account.get("address")), profile["email"])
+    # "Sender address": shown in From when it differs from the account signing in.  Gmail keeps it only
+    # if it is a verified "Send mail as" alias of that account; otherwise Gmail shows the account itself.
+    shown = (current.get("from_alias") or "").strip() or address
     message = EmailMessage()
     message["Subject"] = application.get("subject") or ""
-    message["From"] = f"{profile['full_name']} <{address}>"
+    message["From"] = f"{profile['full_name']} <{shown}>"
+    if shown != address:
+        message["Reply-To"] = shown
     if application.get("recipient"):
         message["To"] = application["recipient"]
     if draft:
@@ -219,11 +248,65 @@ def build_message(application: dict[str, Any], sender: Optional[str] = None, dra
         message["Date"] = formatdate(localtime=True)
         message["Message-ID"] = make_msgid(domain=address.split("@")[-1])
     message.set_content(application.get("body") or "")
+
+    total_bytes = len((application.get("body") or "").encode("utf-8"))
+
     if current["attach_letter"] and (application.get("letter") or "").strip():
-        message.add_attachment(letter_pdf(application), maintype="application", subtype="pdf", filename=letter_filename(application))
-    path = cv_path(application.get("language") or "EN")
-    if path:
-        message.add_attachment(path.read_bytes(), maintype="application", subtype="pdf", filename=path.name)
+        letter_bytes = letter_pdf(application)
+        total_bytes += len(letter_bytes)
+        message.add_attachment(letter_bytes, maintype="application", subtype="pdf", filename=letter_filename(application))
+
+    # Resolve attached documents
+    attached = application.get("selected_documents")
+    if attached is None and application.get("id"):
+        attached = documents.get_application_documents(application["id"])
+
+    if attached:
+        for doc in attached:
+            try:
+                path = documents.get_document_path(doc)
+            except Exception as exc:
+                raise MailError(f"Selected document '{doc.get('title')}' could not be accessed: {exc}")
+            if not path.exists() or not path.is_file():
+                raise MailError(f"Selected document '{doc.get('title')}' ({doc.get('original_filename')}) was not found in storage.")
+            data = path.read_bytes()
+            total_bytes += len(data)
+            if total_bytes > documents.MAX_TOTAL_ATTACHMENTS_SIZE:
+                raise MailError(f"Total attachment size ({total_bytes / (1024*1024):.1f} MB) exceeds maximum limit of {documents.MAX_TOTAL_ATTACHMENTS_SIZE // (1024*1024)} MB.")
+            ext = path.suffix.lower()
+            maintype, subtype = ("application", ext.lstrip(".") if ext != ".pdf" else "pdf")
+            if ext == ".docx":
+                maintype, subtype = "application", "vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif ext == ".doc":
+                maintype, subtype = "application", "msword"
+            elif ext in (".png", ".jpg", ".jpeg"):
+                maintype, subtype = "image", "png" if ext == ".png" else "jpeg"
+            filename = doc.get("original_filename") or path.name
+            message.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
+    else:
+        # Fallback to default document for application language
+        lang = application.get("language") or "EN"
+        def_ids = documents.get_defaults_for_language(lang)
+        attached_fallback = False
+        if def_ids:
+            def_doc = documents.get_document(def_ids[0])
+            if def_doc:
+                try:
+                    path = documents.get_document_path(def_doc)
+                    if path.exists() and path.is_file():
+                        data = path.read_bytes()
+                        total_bytes += len(data)
+                        message.add_attachment(data, maintype="application", subtype="pdf", filename=def_doc.get("original_filename") or path.name)
+                        attached_fallback = True
+                except Exception:
+                    pass
+        if not attached_fallback:
+            path = cv_path(lang)
+            if path and path.exists():
+                data = path.read_bytes()
+                total_bytes += len(data)
+                message.add_attachment(data, maintype="application", subtype="pdf", filename=path.name)
+
     return message
 
 
@@ -276,11 +359,16 @@ def _connect(account: dict[str, Any]) -> smtplib.SMTP:
 
 def test_accounts() -> list[dict[str, Any]]:
     """Sign in to each configured account without sending anything."""
+    from . import google_mail
+
     results = []
     for account in settings()["accounts"]:
         if not account.get("address"):
             continue
         try:
+            if google_mail.connected(account):
+                results.append({"address": account["address"], "ok": True, "message": google_mail.check(account)})
+                continue
             _connect(account).quit()
             results.append({"address": account["address"], "ok": True, "message": "Signed in successfully."})
         except MailError as exc:
@@ -289,7 +377,8 @@ def test_accounts() -> list[dict[str, Any]]:
 
 
 def sent_today() -> int:
-    return int((db.one("SELECT count(*) AS n FROM applications WHERE sent_from IS NOT NULL AND sent_at = ?",
+    # Only e-mails count: an application you submitted on an employer's website is not a send.
+    return int((db.one("SELECT count(*) AS n FROM applications WHERE sent_from IS NOT NULL AND sent_from != 'employer website' AND sent_at = ?",
                        (date.today().isoformat(),)) or {}).get("n", 0))
 
 
@@ -302,19 +391,52 @@ def validate(application: dict[str, Any]) -> None:
         raise MailError(f"“{recipient}” is not a valid e-mail address.")
     if not (application.get("subject") or "").strip() or len((application.get("body") or "").strip()) < 40:
         raise MailError("The subject or the message is empty.")
-    if not cv_path(application.get("language") or "EN"):
-        raise MailError("The CV file for this language was not found in the project folder.")
+
+    lang = application.get("language") or "EN"
+    attached = application.get("selected_documents")
+    if attached is None and application.get("id"):
+        attached = documents.get_application_documents(application["id"])
+
+    has_cv = False
+    if attached:
+        for doc in attached:
+            try:
+                path = documents.get_document_path(doc)
+            except Exception as exc:
+                raise MailError(f"Document error: {exc}")
+            if not path.exists() or not path.is_file():
+                raise MailError(f"Selected document '{doc.get('title')}' ({doc.get('original_filename')}) is missing from disk.")
+            if doc.get("doc_type") == "cv":
+                has_cv = True
+    else:
+        has_cv = bool(documents.get_defaults_for_language(lang) or cv_path(lang))
+
+    if not has_cv:
+        raise MailError(f"The CV file for language {lang} was not found in the documents library.")
+
     if not public_settings()["ready"]:
         raise MailError("E-mail sending is not set up yet: add an app password under Profile & priorities → E-mail sending.")
 
 
 def send(application: dict[str, Any]) -> str:
     """Send one application; returns the address it left from."""
+    from . import google_mail
+
     validate(application)
     errors = []
     for account in settings()["accounts"]:
-        if not account.get("address") or not account.get("secret"):
+        if not usable(account):
             continue
+        if google_mail.connected(account):
+            try:
+                google_mail.send(account, build_message(application, sender=account["address"]))
+                return account["address"]
+            except Uncertain:
+                raise
+            except MailError as exc:
+                errors.append(str(exc))
+            if not account.get("secret"):
+                continue
         try:
             server = _connect(account)
             try:
@@ -332,6 +454,40 @@ def send(application: dict[str, Any]) -> str:
     raise MailError(" | ".join(errors) or "No account is configured.")
 
 
+def send_plain(to: str, subject: str, body: str) -> str:
+    """Send a short text e-mail (used for notifications to yourself).  Returns the sending address."""
+    from . import google_mail
+
+    errors = []
+    for account in settings()["accounts"]:
+        if not usable(account):
+            continue
+        message = EmailMessage()
+        message["Subject"], message["From"], message["To"] = subject, f"Internship Radar <{account['address']}>", to
+        message["Date"] = formatdate(localtime=True)
+        message.set_content(body)
+        if google_mail.connected(account):
+            try:
+                google_mail.send(account, message)
+                return account["address"]
+            except Uncertain:
+                raise
+            except MailError as exc:
+                errors.append(str(exc))
+            if not account.get("secret"):
+                continue
+        try:
+            server = _connect(account)
+            try:
+                server.send_message(message)
+            finally:
+                _close(server)
+            return account["address"]
+        except (MailError, smtplib.SMTPException, OSError) as exc:
+            errors.append(str(exc))
+    raise MailError(" | ".join(errors) or "No account is configured.")
+
+
 def approve(application_id: int, delay_hours: Optional[float] = None) -> dict[str, Any]:
     """Record the candidate's validation and queue the e-mail for sending after the delay."""
     application = load_application(application_id)
@@ -339,6 +495,13 @@ def approve(application_id: int, delay_hours: Optional[float] = None) -> dict[st
         raise MailError("Unknown application.")
     if application["stage"] in ("sent", "follow_up", "interview", "offer") and application.get("sent_at"):
         raise MailError("This application has already been sent.")
+    if application.get("contact_id"):
+        from . import outreach
+
+        contact = db.one("SELECT * FROM contacts WHERE id = ?", (application["contact_id"],))
+        flag = outreach.needs_checking(contact)
+        if flag:
+            raise MailError(f"Your notes flag this person's address or identity (“{flag}”). Check it, edit the note, then approve.")
     validate(application)
     hours = settings()["delay_hours"] if delay_hours is None else delay_hours
     send_at = (datetime.now(timezone.utc) + timedelta(hours=float(hours))).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -361,12 +524,17 @@ def _record_sent(application: dict[str, Any], sender: str) -> None:
 def deliver(application_id: int) -> dict[str, Any]:
     """Claim one scheduled application, send it, and record the outcome.  Safe against double sending."""
     with db.write() as connection:
-        claimed = connection.execute("UPDATE applications SET stage = 'sending' WHERE id = ? AND stage = 'scheduled'", (application_id,)).rowcount
+        claimed = connection.execute("UPDATE applications SET stage = 'sending', updated_at = ? WHERE id = ? AND stage = 'scheduled'",
+                                     (db.now(), application_id)).rowcount
     if not claimed:
         return {"id": application_id, "sent": False, "error": "not scheduled"}
     application = load_application(application_id)
     try:
         sender = send(application)
+    except MemoryError:
+        # The computer ran out of memory while building the message: nothing left, so it simply waits for the next round.
+        db.execute("UPDATE applications SET stage = 'scheduled', updated_at = ? WHERE id = ?", (db.now(), application_id))
+        return {"id": application_id, "sent": False, "error": "the computer is out of memory — close some programs; it will be retried"}
     except MailError as exc:
         db.execute("UPDATE applications SET stage = 'ready', send_at = NULL, send_error = ?, updated_at = ? WHERE id = ?",
                    (str(exc)[:500], db.now(), application_id))
@@ -375,8 +543,22 @@ def deliver(application_id: int) -> dict[str, Any]:
     return {"id": application_id, "sent": True, "from": sender, "to": application["recipient"]}
 
 
+INTERRUPTED = ("Sending was interrupted (the computer slept or lost its connection), so it may or may not have left. "
+               "Look for it in your Sent folder; if it is not there, approve it again.")
+
+
+def recover_interrupted(minutes: int = 20) -> int:
+    """E-mails left in 'sending' by a process that stopped: hand them back to you instead of guessing."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    with db.write() as connection:
+        return connection.execute(
+            "UPDATE applications SET stage = 'ready', send_at = NULL, send_error = ?, updated_at = ? "
+            "WHERE stage = 'sending' AND coalesce(updated_at, '') < ?", (INTERRUPTED, db.now(), cutoff)).rowcount
+
+
 def send_due(log=None) -> list[dict[str, Any]]:
     """Send every approved application whose delay has elapsed, within the daily cap."""
+    recover_interrupted()
     due = db.rows("SELECT id FROM applications WHERE stage = 'scheduled' AND send_at IS NOT NULL AND send_at <= ? ORDER BY send_at", (db.now(),))
     results = []
     cap = int(settings()["daily_cap"])

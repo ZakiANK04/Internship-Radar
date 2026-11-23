@@ -63,12 +63,23 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 def cmd_send_due(_: argparse.Namespace) -> int:
     """Send approved e-mails whose waiting time is over (run every 15 minutes by the sender task)."""
-    from radar import db, mailer
+    from radar import pipeline
 
-    db.initialize()
-    for outcome in mailer.send_due():
-        print(f"sent to {outcome['to']} from {outcome['from']}" if outcome["sent"] else f"failed: {outcome['error']}")
+    print(pipeline.tick())
     return 0
+
+
+def _laptop_friendly(name: str, minutes: int) -> None:
+    """schtasks creates tasks that never start on battery; let them run on battery and catch up after sleep.
+
+    The computer is never woken up for them: a run missed while it slept starts as soon as it is awake.
+    """
+    script = (f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable "
+              f"-MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes {minutes}); "
+              f"Set-ScheduledTask -TaskName '{name}' -Settings $s | Out-Null")
+    result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], check=False, capture_output=True, text=True)
+    if result.returncode:
+        print(f"Note: could not let “{name}” run on battery ({result.stderr.strip()[:160]}). It will only run when plugged in.")
 
 
 def cmd_schedule(args: argparse.Namespace) -> int:
@@ -86,6 +97,8 @@ def cmd_schedule(args: argparse.Namespace) -> int:
     sender = subprocess.run(["schtasks", "/Create", "/TN", SENDER_TASK, "/TR", f"{script} send-due",
                              "/SC", "MINUTE", "/MO", "15", "/F"], check=False).returncode
     if daily == 0 and sender == 0:
+        _laptop_friendly(TASK_NAME, minutes=120)
+        _laptop_friendly(SENDER_TASK, minutes=30)
         print(f"Scheduled: the pipeline runs every day at {args.time}, and approved e-mails are sent within 15 minutes "
               "of their waiting time ending. Remove both with: python radar.py schedule --remove")
     return max(daily, sender)

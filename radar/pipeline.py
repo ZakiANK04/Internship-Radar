@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
 
-from . import config, contacts, db, mailer, net, scoring, writer
+from . import config, contacts, db, documents, inbox, mailer, net, notify, pay, researchers, scoring, workflow, writer
 from .sources import Context, RawOffer, Source, load_sources
 from .text import clean, detect_city, detect_countries, fold, guess_language, normalise_country, pick_country
 
@@ -77,6 +77,7 @@ def _normalise(raw: RawOffer, source: Source, lookup: dict, order: list[str], sk
         "location_raw": clean(raw.location)[:200], "url": raw.url, "description": description[:20000], "lang": lang,
         "contract": result.contract, "posted_at": raw.posted_at, "deadline": raw.deadline, "remote": int(raw.remote),
         "score": result.score, "score_parts": result.parts, "flags": result.flags, "tags": result.tags,
+        "pay": pay.assess(title + chr(10) + description, country, raw.salary, raw.pay_hint),
     }
 
 
@@ -138,29 +139,73 @@ def run_scout(log, only: Optional[Iterable[str]] = None) -> dict[str, Any]:
                         totals["new"] += 1
                         new_titles.append(f"{values['score']:3d}  {values['title']} — {values['org']} ({values['country'] or 'remote'})")
                     for person in raw.contacts:
+                        c_today = date.today().isoformat()
+                        c_ev = person.get("evidence") or [
+                            {"type": "offer", "text": values["title"], "url": raw.url, "retrieved_at": c_today}
+                        ]
                         contact_id, _ = db.upsert_contact(connection, {
-                            "name": person["name"], "role": person.get("role"), "org": person.get("org") or values["org"],
-                            "country": values["country"], "email": person.get("email"),
-                            "email_source": person.get("email_source"), "url": person.get("url") or raw.url,
-                            "kind": "offer", "topics": values["tags"][:4],
-                            "evidence": [{"type": "offer", "text": values["title"], "url": raw.url}],
+                            "name": person["name"],
+                            "role": person.get("role") or "Supervisor named in posting",
+                            "role_category": person.get("role_category", "supervisor"),
+                            "role_verified": int(person.get("role_verified", 1)),
+                            "org": None if (person.get("org") or values["org"] or "").startswith("via ")
+                            else (person.get("org") or values["org"]),
+                            "country": values["country"],
+                            "email": person.get("email"),
+                            "email_source": person.get("email_source"),
+                            "email_verified": int(person.get("email_verified", 1 if person.get("email") else 0)),
+                            "url": person.get("url") or raw.url,
+                            "kind": "offer",
+                            "topics": values["tags"][:4],
+                            "evidence": c_ev,
                             "relevance": min(100, values["score"] + 10),
+                            "confidence": person.get("confidence", 95 if person.get("email") else 85),
+                            "lookup_status": "found" if person.get("email") else "pending",
+                            "last_lookup_at": c_today if person.get("email") else None,
                         })
-                        db.link_offer_contact(connection, offer_id, contact_id)
+                        db.link_offer_contact(
+                            connection, offer_id, contact_id,
+                            relevance=min(100, values["score"] + 10),
+                            role=person.get("role") or "Supervisor named in offer",
+                        )
                 # Postings that vanished from a healthy source are retired after two misses.
                 marks = ",".join("?" for _ in seen_uids) or "''"
                 connection.execute(
                     f"UPDATE offers SET missed_runs = missed_runs + 1 WHERE source = ? AND active = 1 AND uid NOT IN ({marks})",
                     (source.name, *seen_uids))
                 connection.execute("UPDATE offers SET active = 0 WHERE source = ? AND missed_runs >= 2", (source.name,))
+
+            if error is None:
+                health_status = "ok" if len(raws) > 0 else "empty"
+                http_code = 200
+                error_category = None
+            else:
+                health_status = "error"
+                http_code = None
+                error_category = "error"
+                if "404" in error:
+                    http_code = 404
+                    error_category = "http_404"
+                elif "422" in error:
+                    http_code = 422
+                    error_category = "http_422"
+                elif "429" in error:
+                    http_code = 429
+                    error_category = "rate_limit"
+                elif "timed out" in error.lower() or "timeout" in error.lower():
+                    error_category = "timeout"
+                elif "connection" in error.lower():
+                    error_category = "connection"
+
             connection.execute(
-                """INSERT INTO source_health(source, kind, last_run, last_ok, last_error, fetched, kept, seconds)
-                   VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO source_health(source, kind, last_run, last_ok, last_error, fetched, kept, seconds, status, http_code, error_category)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(source) DO UPDATE SET kind = excluded.kind, last_run = excluded.last_run,
                      last_ok = coalesce(excluded.last_ok, source_health.last_ok), last_error = excluded.last_error,
-                     fetched = excluded.fetched, kept = excluded.kept, seconds = excluded.seconds""",
+                     fetched = excluded.fetched, kept = excluded.kept, seconds = excluded.seconds,
+                     status = excluded.status, http_code = excluded.http_code, error_category = excluded.error_category""",
                 (source.name, f"{source.group}|{source.label}", stamp, None if error else stamp, error,
-                 len(raws), kept, round(seconds, 1)))
+                 len(raws), kept, round(seconds, 1), health_status, http_code, error_category))
         totals["fetched"] += len(raws)
         totals["kept"] += kept
         totals["failed" if error else "ok"] += 1
@@ -205,6 +250,9 @@ def _apply_llm_bonus(values: dict[str, Any], llm_json: Optional[str]) -> None:
 
 # -------------------------------------------------------------------- Analyst
 def run_analyst(log) -> dict[str, Any]:
+    filled = pay.backfill()  # offers stored before pay was extracted
+    if filled:
+        log(f"Pay read for {filled} older offer(s).")
     priorities, profile = db.priorities(), db.profile()
     limit = int(priorities.get("llm_triage_per_run") or 0)
     counts = db.one("SELECT count(*) AS total, sum(score >= 85) AS a, sum(score >= 72 AND score < 85) AS b FROM offers WHERE active = 1") or {}
@@ -254,6 +302,12 @@ def run_contacts(log, force: bool = False) -> dict[str, Any]:
             db.set_setting("contacts_refreshed_at", db.now())
     else:
         log("Researcher network is fresh — next OpenAlex refresh in a few days.")
+    # Your own researcher list: find each person's publication profile, then look-alikes.
+    if db.one("SELECT 1 AS x FROM contacts WHERE kind = 'imported' LIMIT 1"):
+        researchers.resolve(log)
+        if due or db.get_setting("similar_requested"):
+            summary["similar"] = researchers.find_similar(priorities["tiers"], log)
+            db.set_setting("similar_requested", False)
     summary["emails"] = contacts.auto_enrich(12, log)
     summary["total"] = (db.one("SELECT count(*) AS n FROM contacts") or {}).get("n", 0)
     return summary
@@ -291,42 +345,81 @@ def run_directory(log, force: bool = False) -> dict[str, Any]:
 
 # --------------------------------------------------------------------- Writer
 def run_writer(log) -> dict[str, Any]:
-    limit = int(db.priorities().get("auto_draft_per_run") or 0)
-    if not limit:
-        return {"drafted": 0}
-    targets = db.rows(
-        """SELECT o.* FROM offers o WHERE o.active = 1 AND o.status IN ('new', 'shortlisted') AND o.score >= 85
-           AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.offer_id = o.id)
-           ORDER BY (o.status = 'shortlisted') DESC, o.score DESC LIMIT ?""", (limit,))
+    """Keep a stock of review-ready e-mails: researchers first, plus offers that name a contact with an address."""
+    priorities = db.priorities()
+    result = workflow.prepare_outreach(limit=int(priorities.get("outreach_drafts_per_run", 20) or 0))
     drafted = 0
+    targets = db.rows(
+        """SELECT o.*, c.id AS linked_contact FROM offers o JOIN offer_contacts oc ON oc.offer_id = o.id
+           JOIN contacts c ON c.id = oc.contact_id AND c.email IS NOT NULL AND c.status = 'new'
+           WHERE o.active = 1 AND o.status IN ('new', 'shortlisted') AND o.score >= 85
+             AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.offer_id = o.id OR a.contact_id = c.id)
+           GROUP BY o.id ORDER BY o.score DESC LIMIT ?""", (int(priorities.get("auto_draft_per_run") or 0),))
     for offer in targets:
-        linked = db.one("SELECT c.id FROM contacts c JOIN offer_contacts oc ON oc.contact_id = c.id WHERE oc.offer_id = ? "
-                        "ORDER BY (c.email IS NOT NULL) DESC LIMIT 1", (offer["id"],))
+        lang = writer.choose_language(offer, None)
+        default_ids = documents.get_defaults_for_language(lang)
         try:
-            draft = writer.compose(offer_id=offer["id"], contact_id=linked["id"] if linked else None)
+            draft = writer.compose(offer_id=offer["id"], contact_id=offer["linked_contact"], language=lang, use_llm=False,
+                                   attached_docs=[documents.get_document(did) for did in default_ids if documents.get_document(did)])
         except Exception as exc:
             log(f"Could not draft for “{offer['title']}”: {exc}", "warn")
             continue
-        save_application(offer_id=offer["id"], contact_id=linked["id"] if linked else None, draft=draft)
+        save_application(offer_id=offer["id"], contact_id=offer["linked_contact"], draft=draft, selected_document_ids=default_ids)
         drafted += 1
-    log(f"{drafted} application draft(s) prepared for review.")
-    return {"drafted": drafted}
+    workflow.convert_formless_drafts()
+    log(f"{result['created']} researcher e-mail(s) and {drafted} offer e-mail(s) prepared — {result['pending'] + drafted} waiting for your approval.")
+    return {"drafted": result["created"] + drafted, "pending": result["pending"] + drafted}
 
 
 def save_application(*, offer_id: Optional[int], contact_id: Optional[int], draft: dict[str, Any],
-                     stage: str = "to_review") -> int:
+                     stage: str = "to_review", selected_document_ids: Optional[list[int]] = None) -> int:
     stamp = db.now()
-    return db.execute(
+    lang = draft.get("language") or "EN"
+    if selected_document_ids is None:
+        selected_document_ids = documents.get_defaults_for_language(lang)
+
+    import json
+    doc_ids_json = json.dumps(selected_document_ids)
+    app_id = db.execute(
         """INSERT INTO applications(offer_id, contact_id, kind, stage, language, recipient, subject, body, letter, generator,
-                                    created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                    selected_document_ids, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (offer_id, contact_id, draft.get("kind") or ("offer" if offer_id else "spontaneous"), stage,
-         draft.get("language") or "EN", draft.get("recipient") or "", draft.get("subject") or "", draft.get("body") or "",
-         draft.get("letter") or "", draft.get("generator") or "template", stamp, stamp))
+         lang, draft.get("recipient") or "", draft.get("subject") or "", draft.get("body") or "",
+         draft.get("letter") or "", draft.get("generator") or "template", doc_ids_json, stamp, stamp))
+
+    if selected_document_ids:
+        documents.set_application_documents(app_id, selected_document_ids)
+
+    return app_id
+
+
+def prepare_follow_up(application_id: int) -> Optional[int]:
+    """Create a "Relance" draft for an e-mail that got no reply (it still needs your approval to be sent)."""
+    original = db.one("SELECT a.*, c.name AS contact_name FROM applications a LEFT JOIN contacts c ON c.id = a.contact_id WHERE a.id = ?",
+                      (application_id,))
+    if original is None or not original.get("sent_at"):
+        return None
+    marker = f"Follow-up to application #{application_id}"
+    existing = db.one("SELECT id FROM applications WHERE notes LIKE ? AND sent_at IS NULL", (f"%{marker}%",))
+    if existing:
+        return existing["id"]
+    language = original.get("language") or "EN"
+    text = writer.follow_up_draft(original, language, db.profile())
+    draft = {"kind": original.get("kind") or "spontaneous", "language": language, "recipient": original.get("recipient") or "",
+             "subject": text["subject"], "body": text["body"], "letter": "", "generator": "relance template"}
+    new_id = save_application(offer_id=original.get("offer_id"), contact_id=original.get("contact_id"), draft=draft,
+                              selected_document_ids=documents.get_defaults_for_language(language))
+    db.execute("UPDATE applications SET notes = ? WHERE id = ?", (f"{marker} (first e-mail sent {original['sent_at']}).", new_id))
+    return new_id
 
 
 # ------------------------------------------------------------------ Follow-up
 def run_followup(log) -> dict[str, Any]:
     delivered = mailer.send_due(log)  # approved e-mails whose waiting time is over
+    try:
+        inbox.check(log)  # replies and bounces first, so nobody who answered gets a follow-up
+    except Exception as exc:
+        log(f"Mailbox check failed: {exc}", "warn")
     days = int(db.priorities().get("follow_up_days") or 10)
     cutoff = (date.today() - timedelta(days=days)).isoformat()
     due = db.rows("SELECT id FROM applications WHERE stage = 'sent' AND sent_at IS NOT NULL AND sent_at <= ?", (cutoff,))
@@ -338,6 +431,17 @@ def run_followup(log) -> dict[str, Any]:
         "AND deadline >= ? AND deadline <= ? AND score >= 72 ORDER BY deadline",
         (date.today().isoformat(), (date.today() + timedelta(days=14)).isoformat()))
     log(f"{len(due)} application(s) moved to follow-up; {len(closing)} strong offer(s) close within 14 days.")
+    # Researchers who did not answer: prepare the "Relance" e-mail for your review (never sent without approval).
+    prepared = 0
+    for row in db.rows("SELECT id FROM applications WHERE stage = 'follow_up' AND kind = 'spontaneous' AND contact_id IS NOT NULL "
+                       "ORDER BY sent_at LIMIT 40"):
+        if not db.one("SELECT 1 AS x FROM applications WHERE notes LIKE ?", (f"%Follow-up to application #{row['id']}%",)):
+            prepare_follow_up(row["id"])
+            prepared += 1
+    if prepared:
+        log(f"{prepared} follow-up e-mail(s) prepared for your review.")
+    notify.events(log)
+    notify.summary(log)
     return {"follow_ups": len(due), "closing_soon": len(closing), "emails_sent": sum(item["sent"] for item in delivered)}
 
 
@@ -424,3 +528,23 @@ def schedule_loop(stop: threading.Event) -> None:
             continue
         if not last or datetime.now(timezone.utc) - datetime.fromisoformat(last.replace("Z", "+00:00")) > timedelta(hours=hours):
             start_background(trigger="schedule")
+
+
+def tick(log=print) -> dict[str, Any]:
+    """Background heartbeat (every 15 minutes): send what is due, read replies, notify, and catch up a missed daily scan."""
+    db.initialize()
+    result: dict[str, Any] = {"sent": sum(item["sent"] for item in mailer.send_due())}
+    if inbox.due(30):
+        try:
+            result["inbox"] = inbox.check(log)
+        except Exception as exc:  # the mailbox must never stop the sender
+            result["inbox_error"] = str(exc)
+    result["notified"] = notify.events(log) + int(notify.summary(log))
+    # A run left "running" by a closed window is not running any more.
+    stale = (datetime.now(timezone.utc) - timedelta(hours=2)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    db.execute("UPDATE runs SET status = 'interrupted', finished_at = started_at WHERE status = 'running' AND started_at < ?", (stale,))
+    last = db.get_setting("last_run_at")
+    overdue = not last or datetime.now(timezone.utc) - datetime.fromisoformat(last.replace("Z", "+00:00")) > timedelta(hours=24)
+    if overdue and not db.one("SELECT 1 AS x FROM runs WHERE status = 'running'"):
+        result["catch_up"] = run_pipeline(trigger="catch-up").get("status")
+    return result

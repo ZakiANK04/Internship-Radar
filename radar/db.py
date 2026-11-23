@@ -14,7 +14,7 @@ from . import config
 _WRITE_LOCK = threading.RLock()
 
 OFFER_STATUSES = ("new", "shortlisted", "applied", "interview", "offer", "rejected", "dismissed")
-APPLICATION_STAGES = ("to_review", "ready", "scheduled", "sent", "follow_up", "interview", "offer", "rejected", "closed")
+APPLICATION_STAGES = ("to_review", "ready", "scheduled", "sending", "sent", "follow_up", "replied", "bounced", "interview", "offer", "rejected", "closed", "kit")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS offers (
@@ -139,6 +139,47 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    doc_type TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'ALL',
+    filename TEXT NOT NULL,
+    original_filename TEXT NOT NULL,
+    file_size INTEGER NOT NULL DEFAULT 0,
+    mime_type TEXT NOT NULL DEFAULT 'application/pdf',
+    version TEXT,
+    notes TEXT,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(doc_type);
+CREATE INDEX IF NOT EXISTS idx_documents_lang ON documents(language);
+
+CREATE TABLE IF NOT EXISTS application_documents (
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (application_id, document_id)
+);
+
+CREATE TABLE IF NOT EXISTS sources_registry (
+    id INTEGER PRIMARY KEY,
+    source_id TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    label TEXT NOT NULL,
+    ats TEXT,
+    config TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    is_custom INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sources_registry_enabled ON sources_registry(enabled);
 """
 
 
@@ -192,11 +233,59 @@ def execute(query: str, params: Iterable[Any] = ()) -> int:
 def initialize() -> None:
     with write() as connection:
         connection.executescript(SCHEMA)
-        # Columns added after the first release (e-mail sending).
-        existing = {row["name"] for row in connection.execute("PRAGMA table_info(applications)").fetchall()}
-        for column in ("letter", "approved_at", "send_at", "sent_from", "send_error"):
-            if column not in existing:
-                connection.execute(f"ALTER TABLE applications ADD COLUMN {column} TEXT")
+        # Migrations for applications table
+        app_cols = {row["name"] for row in connection.execute("PRAGMA table_info(applications)").fetchall()}
+        for col in ("letter", "approved_at", "send_at", "sent_from", "send_error", "selected_document_ids",
+                    "replied_at", "reply_from", "reply_subject", "reply_snippet", "reply_kind", "reply_tone", "notified_at"):
+            if col not in app_cols:
+                connection.execute(f"ALTER TABLE applications ADD COLUMN {col} TEXT")
+
+        offer_cols = {row["name"] for row in connection.execute("PRAGMA table_info(offers)").fetchall()}
+        if "pay" not in offer_cols:
+            connection.execute("ALTER TABLE offers ADD COLUMN pay TEXT")
+
+        # Migrations for contacts table
+        contact_cols = {row["name"] for row in connection.execute("PRAGMA table_info(contacts)").fetchall()}
+        for col, col_type in (
+            ("role_category", "TEXT DEFAULT 'researcher'"),
+            ("role_verified", "INTEGER DEFAULT 0"),
+            ("confidence", "INTEGER DEFAULT 50"),
+            ("email_verified", "INTEGER DEFAULT 0"),
+            ("lookup_status", "TEXT DEFAULT 'pending'"),
+            ("last_lookup_at", "TEXT"),
+            ("is_starred", "INTEGER DEFAULT 0"),
+            ("profile_topics", "TEXT"),
+            ("source_row", "TEXT"),
+        ):
+            if col not in contact_cols:
+                connection.execute(f"ALTER TABLE contacts ADD COLUMN {col} {col_type}")
+
+        # Migrations for source_health table
+        health_cols = {row["name"] for row in connection.execute("PRAGMA table_info(source_health)").fetchall()}
+        for col, col_type in (
+            ("status", "TEXT DEFAULT 'ok'"),
+            ("http_code", "INTEGER"),
+            ("error_category", "TEXT"),
+        ):
+            if col not in health_cols:
+                connection.execute(f"ALTER TABLE source_health ADD COLUMN {col} {col_type}")
+
+        # Migrations for offer_contacts table
+        oc_cols = {row["name"] for row in connection.execute("PRAGMA table_info(offer_contacts)").fetchall()}
+        for col, col_type in (
+            ("relevance", "INTEGER DEFAULT 50"),
+            ("role", "TEXT"),
+            ("linked_at", "TEXT"),
+        ):
+            if col not in oc_cols:
+                connection.execute(f"ALTER TABLE offer_contacts ADD COLUMN {col} {col_type}")
+
+    # Synchronize existing documents if library is empty
+    try:
+        from . import documents
+        documents.sync_existing_documents()
+    except Exception:
+        pass
 
 
 # ----------------------------------------------------------------- settings
@@ -232,7 +321,7 @@ def priorities() -> dict:
 OFFER_FIELDS = (
     "source", "source_kind", "title", "org", "country", "city", "tier", "location_raw", "url",
     "description", "lang", "contract", "posted_at", "deadline", "remote", "score", "score_parts",
-    "flags", "tags",
+    "flags", "tags", "pay",
 )
 
 
@@ -240,7 +329,7 @@ def upsert_offer(connection: sqlite3.Connection, uid: str, values: dict[str, Any
     """Insert or refresh an offer.  User state (status, notes) is never overwritten."""
     stamp = now()
     payload = {key: values.get(key) for key in OFFER_FIELDS}
-    for key in ("score_parts", "flags", "tags"):
+    for key in ("score_parts", "flags", "tags", "pay"):
         if payload[key] is not None and not isinstance(payload[key], str):
             payload[key] = json.dumps(payload[key], ensure_ascii=False)
     existing = connection.execute("SELECT id FROM offers WHERE uid = ?", (uid,)).fetchone()
@@ -262,8 +351,10 @@ def upsert_offer(connection: sqlite3.Connection, uid: str, values: dict[str, Any
 
 # ----------------------------------------------------------------- contacts
 CONTACT_FIELDS = (
-    "name", "role", "org", "country", "email", "email_source", "url", "orcid", "openalex_id", "kind",
-    "topics", "evidence", "relevance",
+    "name", "role", "role_category", "role_verified", "org", "country", "email",
+    "email_source", "email_verified", "url", "orcid", "openalex_id", "kind",
+    "topics", "evidence", "relevance", "confidence", "lookup_status",
+    "last_lookup_at", "is_starred",
 )
 
 
@@ -271,11 +362,18 @@ def contact_key(name: str, org: Optional[str]) -> str:
     import re
     import unicodedata
 
-    def norm(value: Optional[str]) -> str:
+    def norm_name(value: Optional[str]) -> str:
         text = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode()
         return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
-    return f"{norm(name)}|{norm(org)[:40]}"
+    def norm_org(value: Optional[str]) -> str:
+        text = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode().lower()
+        # Strip organizational noise and team prefixes
+        text = re.sub(r"\b(centre|campus|laboratoire|lab|team|equipe|department|dept|universite|university|de|du|des|et|and|in|at)\b", " ", text)
+        text = re.sub(r"[\s-]+", " ", text).strip()
+        return re.sub(r"[^a-z0-9]+", "", text)[:30]
+
+    return f"{norm_name(name)}|{norm_org(org)}"
 
 
 def upsert_contact(connection: sqlite3.Connection, values: dict[str, Any]) -> tuple[int, bool]:
@@ -283,6 +381,8 @@ def upsert_contact(connection: sqlite3.Connection, values: dict[str, Any]) -> tu
     stamp = now()
     key = values.get("key") or contact_key(values["name"], values.get("org"))
     payload = {field: values.get(field) for field in CONTACT_FIELDS}
+    if not payload.get("kind"):
+        payload["kind"] = "expert"
     for field in ("topics", "evidence"):
         if payload[field] is not None and not isinstance(payload[field], str):
             payload[field] = json.dumps(payload[field], ensure_ascii=False)
@@ -294,13 +394,35 @@ def upsert_contact(connection: sqlite3.Connection, values: dict[str, Any]) -> tu
     if existing:
         merged = {}
         for field in CONTACT_FIELDS:
-            new_value, old_value = payload[field], existing[field]
+            new_value, old_value = payload.get(field), existing[field] if field in existing.keys() else None
             if field == "relevance":
+                merged[field] = max(int(new_value or 0), int(old_value or 0))
+            elif field == "confidence":
+                merged[field] = max(int(new_value or 50), int(old_value or 50))
+            elif field in ("role_verified", "email_verified", "is_starred"):
                 merged[field] = max(int(new_value or 0), int(old_value or 0))
             elif field == "kind":
                 merged[field] = old_value if old_value == "alumni" else (new_value or old_value)
             elif field in ("email", "email_source"):
                 merged[field] = old_value or new_value
+            elif field == "evidence":
+                old_ev = json.loads(old_value) if isinstance(old_value, str) and old_value else (old_value or [])
+                new_ev = json.loads(new_value) if isinstance(new_value, str) and new_value else (new_value or [])
+                seen_urls = set()
+                combined = []
+                for item in (*old_ev, *new_ev):
+                    if isinstance(item, dict):
+                        u = item.get("url") or item.get("text")
+                        if u and u not in seen_urls:
+                            seen_urls.add(u)
+                            combined.append(item)
+                    elif item:
+                        combined.append(item)
+                merged[field] = json.dumps(combined, ensure_ascii=False)
+            elif field == "lookup_status":
+                merged[field] = new_value if new_value and new_value != "pending" else (old_value or "pending")
+            elif field == "last_lookup_at":
+                merged[field] = new_value or old_value
             else:
                 merged[field] = new_value if new_value not in (None, "", "[]") else old_value
         assignments = ", ".join(f"{field} = ?" for field in CONTACT_FIELDS)
@@ -318,9 +440,21 @@ def upsert_contact(connection: sqlite3.Connection, values: dict[str, Any]) -> tu
     return int(cursor.lastrowid), True
 
 
-def link_offer_contact(connection: sqlite3.Connection, offer_id: int, contact_id: int) -> None:
+def link_offer_contact(
+    connection: sqlite3.Connection,
+    offer_id: int,
+    contact_id: int,
+    relevance: int = 50,
+    role: Optional[str] = None,
+) -> None:
+    stamp = now()
     connection.execute(
-        "INSERT OR IGNORE INTO offer_contacts(offer_id, contact_id) VALUES(?, ?)", (offer_id, contact_id)
+        """INSERT INTO offer_contacts(offer_id, contact_id, relevance, role, linked_at)
+           VALUES(?, ?, ?, ?, ?)
+           ON CONFLICT(offer_id, contact_id) DO UPDATE SET
+             relevance = max(excluded.relevance, offer_contacts.relevance),
+             role = coalesce(excluded.role, offer_contacts.role)""",
+        (offer_id, contact_id, relevance, role, stamp),
     )
 
 

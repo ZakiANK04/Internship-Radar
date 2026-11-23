@@ -1120,5 +1120,77 @@
   "focus": "Research jobs and hosting offers across Europe",
   "url": "https://euraxess.ec.europa.eu/jobs/search",
   "note": ""
+ },
+ {
+  "name": "Efrei Research Lab",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Villejuif",
+  "focus": "Data & AI, cybersecurity, networks (lab of Efrei Paris, attached to Université Paris Panthéon-Assas)",
+  "url": "https://www.efrei.fr/recherche/",
+  "note": "No public internship feed: write to efrei-research-lab@efrei.fr or to a researcher in the Data & AI axis. Efrei company offers are on JobTeaser (Efrei student login)."
+ },
+ {
+  "name": "SAMOVAR — Télécom SudParis",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Évry / Palaiseau",
+  "focus": "Networks, data science, NLP and AI for education (ACMES team)",
+  "url": "https://samovar.telecom-sudparis.eu/",
+  "note": "Its internships are posted on the Institut Mines-Télécom board, which the Radar already scans."
+ },
+ {
+  "name": "IBISC — Université d’Évry Paris-Saclay",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Évry",
+  "focus": "AI for signal/image, robotics, bioinformatics, immersive systems",
+  "url": "https://www.ibisc.univ-evry.fr/",
+  "note": "M2 subjects are published on the lab site and scanned by the Radar."
+ },
+ {
+  "name": "Télécom Paris — Data & AI internships board",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Palaiseau",
+  "focus": "M2/final-year internships sent to the Data & AI master (labs and companies)",
+  "url": "https://dataai.telecom-paris.fr/internships",
+  "note": "Scanned by the Radar (PDF subjects are read)."
+ },
+ {
+  "name": "Paris-Saclay Graduate School — M2 internship catalogue",
+  "kind": "board",
+  "country": "FR",
+  "city": "Saclay",
+  "focus": "Official list of M2 internships in Paris-Saclay labs (LISN, IBISC, L2S, MICS…)",
+  "url": "https://gsweb1.dsi.universite-paris-saclay.fr/internship/list",
+  "note": "Only reachable from the university network or VPN, so the Radar cannot scan it; open it from a Paris-Saclay connection if you have one."
+ },
+ {
+  "name": "LIP6 — AI2D (Sorbonne)",
+  "kind": "lab",
+  "country": "FR",
+  "city": "Paris",
+  "focus": "AI, decision, multi-agent systems; M2 internship offers",
+  "url": "https://ai2d.lip6.fr/taxonomy/term/3",
+  "note": ""
+ },
+ {
+  "name": "GdR IASIS (CNRS) internship board",
+  "kind": "board",
+  "country": "FR",
+  "city": "France-wide",
+  "focus": "National board of M2 internships in image, signal and AI",
+  "url": "https://gdr-iasis.cnrs.fr/type-annonces/postes/postes_stagiaire/",
+  "note": "Scanned by the Radar."
+ },
+ {
+  "name": "SFdS — job and internship board",
+  "kind": "board",
+  "country": "FR",
+  "city": "France-wide",
+  "focus": "Statistics and data-science internships (companies and labs)",
+  "url": "https://www.sfds.asso.fr/fr/n/506-consulter_les_offres_demploi/",
+  "note": "Scanned by the Radar (PDF subjects are read)."
  }
 ]

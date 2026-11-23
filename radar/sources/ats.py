@@ -74,6 +74,7 @@ def lever(token: str, name: str, host: str = "api.lever.co") -> Source:
                 description="\n".join(part for part in sections if part),
                 posted_at=parse_date(job.get("createdAt")), remote=job.get("workplaceType") == "remote",
                 trusted_internship=is_internship_title(commitment),
+                salary=job.get("salaryRange"),
             ))
         return offers
 

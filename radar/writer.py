@@ -13,7 +13,7 @@ import re
 from datetime import date
 from typing import Any, Optional
 
-from . import config, db, net
+from . import config, db, net, outreach
 from .text import clean, fold
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -125,20 +125,53 @@ def _signature(profile: dict) -> str:
 
 
 # ----------------------------------------------------------------- templates
-def offer_draft(offer: dict, contact: Optional[dict], language: str, profile: dict) -> dict[str, str]:
+def _attachment_phrase(language: str, attached_docs: Optional[list[dict]]) -> str:
+    """Accurately describe attached application documents in the main letter/draft body."""
+    if attached_docs is None:
+        has_cv = True
+        has_transcripts = False
+    else:
+        has_cv = any(d.get("doc_type") == "cv" for d in attached_docs)
+        has_transcripts = any(d.get("doc_type") == "transcript" for d in attached_docs)
+
+    if language == "FR":
+        if has_cv and has_transcripts:
+            return "Vous trouverez mon CV ainsi que mes relevés de notes en pièces jointes ; mes lettres de recommandation sont disponibles sur demande."
+        elif has_cv:
+            return "Vous trouverez mon CV en pièce jointe ; mes relevés de notes et lettres de recommandation sont disponibles sur demande."
+        elif has_transcripts:
+            return "Vous trouverez mes relevés de notes en pièces jointes ; mon CV et mes lettres de recommandation sont disponibles sur demande."
+        else:
+            return "Mon CV, mes relevés de notes et lettres de recommandation sont disponibles sur demande."
+    else:
+        if has_cv and has_transcripts:
+            return "My CV and academic transcripts are attached; recommendation letters are available on request."
+        elif has_cv:
+            return "My CV is attached; transcripts and recommendation letters are available on request."
+        elif has_transcripts:
+            return "My academic transcripts are attached; my CV and recommendation letters are available on request."
+        else:
+            return "My CV, transcripts, and recommendation letters are available on request."
+
+
+def offer_draft(offer: dict, contact: Optional[dict], language: str, profile: dict,
+                attached_docs: Optional[list[dict]] = None) -> dict[str, str]:
     """Application message for a published offer."""
     text = f"{offer['title']} {offer.get('description') or ''}"
     first, second = (pick_experiences(profile, text) + [None, None])[:2]
     focus = _focus_terms(text, language)
-    org = offer.get("org") or ("your organisation" if language == "EN" else "votre structure")
+    org = offer.get("org") or ""
+    if not org or org.startswith("via "):  # found on a shared board: the host is not known by name
+        org = ""
     availability = _availability(profile, language)
+    attach_note = _attachment_phrase(language, attached_docs)
     if language == "FR":
         greeting = f"Bonjour {contact['name']}," if contact else "Madame, Monsieur,"
         subject = f"Candidature — {offer['title']} (stage de fin d'études, {profile['duration_months']} mois, à partir de fin janvier 2027)"
         body = [
             greeting,
             f"Élève-ingénieur en dernière année à l'{profile.get('school_fr') or profile['school']} ({profile['degree_fr']}), "
-            f"je vous adresse ma candidature pour l'offre « {offer['title']} » au sein de {org}. Je recherche mon stage de fin "
+            f"je vous adresse ma candidature pour l'offre « {offer['title']} »{' au sein de ' + org if org else ''}. Je recherche mon stage de fin "
             f"d'études (PFE) de {profile['duration_months']} mois et je suis disponible {availability}.",
             f"Ce sujet m'intéresse particulièrement parce qu'il porte sur {focus}, des thématiques sur lesquelles j'ai déjà "
             "travaillé à partir de données réelles. "
@@ -146,8 +179,7 @@ def offer_draft(offer: dict, contact: Optional[dict], language: str, profile: di
             f"Ces expériences, auxquelles s'ajoutent {profile['awards_fr']}, m'ont appris à mener un projet de la "
             "formalisation du besoin jusqu'à un système livré et évalué. Je parle français (C1, TCF 541/699), anglais (C1) "
             "et arabe, et mon école établit une convention de stage tripartite.",
-            "Vous trouverez mon CV en pièce jointe ; mes relevés de notes et lettres de recommandation sont disponibles sur "
-            "demande. Je serais heureux d'échanger avec vous lors d'un entretien à votre convenance.",
+            f"{attach_note} Je serais heureux d'échanger avec vous lors d'un entretien à votre convenance.",
             "Je vous remercie de votre attention et vous prie d'agréer l'expression de mes salutations distinguées.",
             _signature(profile),
         ]
@@ -157,22 +189,22 @@ def offer_draft(offer: dict, contact: Optional[dict], language: str, profile: di
         body = [
             greeting,
             f"I am a final-year engineering student at {profile['school']} ({profile['degree_en']}), and I would like to apply "
-            f"for the “{offer['title']}” position at {org}. I am looking for my {profile['duration_months']}-month final-year "
+            f"for the “{offer['title']}” position{' at ' + org if org else ''}. I am looking for my {profile['duration_months']}-month final-year "
             f"internship (PFE) and I am available {availability}.",
             f"The role appeals to me because it centres on {focus}, areas I have already worked in with real company data. "
             + (first["en"] if first else "") + (" " + second["en"] if second else ""),
             f"Together with {profile['awards_en']}, these projects taught me to take a problem from requirements to a "
             "delivered, evaluated system. I work in English (C1), French (C1, TCF 541/699) and Arabic, and my school issues "
             "the tripartite internship agreement required for the placement.",
-            "My CV is attached; transcripts and recommendation letters are available on request. I would be glad to discuss "
-            "the role at your convenience.",
+            f"{attach_note} I would be glad to discuss the role at your convenience.",
             "Thank you for your time and consideration.",
             "Kind regards,\n" + _signature(profile),
         ]
     return {"subject": subject, "body": "\n\n".join(part for part in body if part)}
 
 
-def outreach_draft(contact: dict, language: str, profile: dict) -> dict[str, str]:
+def outreach_draft(contact: dict, language: str, profile: dict,
+                   attached_docs: Optional[list[dict]] = None) -> dict[str, str]:
     """Spontaneous application to a researcher, anchored on their published work."""
     evidence = contact.get("evidence") or []
     papers = [item for item in evidence if item.get("type") == "paper"]
@@ -183,6 +215,12 @@ def outreach_draft(contact: dict, language: str, profile: dict) -> dict[str, str
     focus = _focus_terms(context, language)
     availability = _availability(profile, language)
     lead = re.split(r",| et | and ", focus)[0].strip()
+    if attached_docs is None:
+        has_cv = True
+        has_transcripts = False
+    else:
+        has_cv = any(d.get("doc_type") == "cv" for d in attached_docs)
+        has_transcripts = any(d.get("doc_type") == "transcript" for d in attached_docs)
     if language == "FR":
         subject = f"Candidature spontanée — stage de fin d'études (PFE), {re.sub(r'^(?:la |le |les |l.)', '', lead)}, fin janv.–juin 2027"
         hook = (f"Vos travaux récents, notamment « {papers[0]['text']} » ({papers[0].get('year', '')}), portent sur {focus}, "
@@ -190,14 +228,22 @@ def outreach_draft(contact: dict, language: str, profile: dict) -> dict[str, str
                 if papers else f"Vos travaux sur {focus} correspondent au sujet sur lequel je souhaite réaliser mon stage de fin d'études.")
         tie = (" Étant moi-même élève de l'École Nationale Polytechnique d'Alger, à laquelle vos publications vous associent, "
                "je me permets de vous écrire directement.") if alumni else ""
+        if has_cv and has_transcripts:
+            doc_action = "Je joins mon CV ainsi que mes relevés de notes et peux vous transmettre mes lettres de recommandation."
+        elif has_cv:
+            doc_action = "Je joins mon CV et peux vous transmettre relevés de notes et lettres de recommandation."
+        elif has_transcripts:
+            doc_action = "Je joins mes relevés de notes et peux vous transmettre mon CV et mes lettres de recommandation."
+        else:
+            doc_action = "Je peux vous transmettre mon CV, mes relevés de notes et mes lettres de recommandation."
         body = [
             f"Bonjour {contact['name']},",
             f"Je suis élève-ingénieur en dernière année à l'{profile.get('school_fr') or profile['school']} ({profile['degree_fr']}). {hook}{tie}",
             (first["fr"] if first else "") + (" " + second["fr"] if second else ""),
             f"Je recherche un stage de {profile['duration_months']} mois, {availability}, dans une équipe de recherche. Mon école "
             "établit une convention de stage tripartite ; je parle français (C1), anglais (C1) et arabe.",
-            "Auriez-vous, vous ou un membre de votre équipe, un sujet de stage ouvert sur cette période ? Je joins mon CV et "
-            "peux vous transmettre relevés de notes et lettres de recommandation. Je reste à votre disposition pour un échange.",
+            f"Auriez-vous, vous ou un membre de votre équipe, un sujet de stage ouvert sur cette période ? {doc_action} "
+            "Je reste à votre disposition pour un échange.",
             "Je vous remercie de votre attention.",
             "Bien cordialement,\n" + _signature(profile),
         ]
@@ -208,14 +254,22 @@ def outreach_draft(contact: dict, language: str, profile: dict) -> dict[str, str
                 if papers else f"Your work on {focus} matches the area in which I would like to carry out my final-year research internship.")
         tie = (" As a current student of École Nationale Polytechnique in Algiers, an institution your publications are "
                "affiliated with, I am taking the liberty of writing to you directly.") if alumni else ""
+        if has_cv and has_transcripts:
+            doc_action = "My CV and academic transcripts are attached, and I can send recommendation letters."
+        elif has_cv:
+            doc_action = "My CV is attached, and I can send transcripts and recommendation letters."
+        elif has_transcripts:
+            doc_action = "My academic transcripts are attached, and I can send my CV and recommendation letters."
+        else:
+            doc_action = "I can provide my CV, transcripts, and recommendation letters upon request."
         body = [
             f"Dear {contact['name']},",
             f"I am a final-year engineering student at {profile['school']} ({profile['degree_en']}). {hook}{tie}",
             (first["en"] if first else "") + (" " + second["en"] if second else ""),
             f"I am looking for a {profile['duration_months']}-month internship, {availability}, in a research group. My school "
             "issues the tripartite internship agreement, and I work in English (C1), French (C1) and Arabic.",
-            "Would you, or someone in your group, have an internship topic open for that period? My CV is attached, and I can "
-            "send transcripts and recommendation letters. I would be grateful for a short conversation if this is of interest.",
+            f"Would you, or someone in your group, have an internship topic open for that period? {doc_action} "
+            "I would be grateful for a short conversation if this is of interest.",
             "Thank you for your time.",
             "Kind regards,\n" + _signature(profile),
         ]
@@ -223,6 +277,13 @@ def outreach_draft(contact: dict, language: str, profile: dict) -> dict[str, str
 
 
 def follow_up_draft(application: dict, language: str, profile: dict) -> dict[str, str]:
+    if application.get("kind") == "spontaneous" and application.get("contact_id"):
+        from . import documents
+
+        contact = db.one("SELECT * FROM contacts WHERE id = ?", (application["contact_id"],))
+        if contact:
+            docs = documents.get_application_documents(application["id"]) if application.get("id") else _documents(None, language)
+            return outreach.follow_up_email(contact, language, profile, docs or _documents(None, language))
     subject = clean(application.get("subject")) or ("my application" if language == "EN" else "ma candidature")
     name = application.get("contact_name")
     if language == "FR":
@@ -320,13 +381,30 @@ def triage(offer: dict, profile: dict) -> Optional[dict[str, Any]]:
 
 # ------------------------------------------------------------------- public
 def choose_language(offer: Optional[dict], contact: Optional[dict]) -> str:
+    """Offers: the posting's language.  People: the language where they work (see outreach.language_for)."""
     if offer is not None:
         return "FR" if (offer.get("lang") == "fr") else "EN"
-    return "FR" if contact and contact.get("country") in ("FR", "LU") else "EN"
+    if contact:
+        return outreach.language_for(contact.get("country"), contact.get("org") or "")
+    return "EN"
+
+
+def _documents(ids: Optional[list], language: str) -> list[dict]:
+    """Documents for a draft: the ones chosen, else the defaults for its language."""
+    from . import documents
+
+    chosen = ids if ids is not None else documents.get_defaults_for_language(language)
+    found = []
+    for item in chosen or []:
+        doc = item if isinstance(item, dict) else documents.get_document(int(item))
+        if doc:
+            found.append(doc)
+    return found
 
 
 def compose(*, offer_id: Optional[int] = None, contact_id: Optional[int] = None, language: Optional[str] = None,
-            use_llm: bool = True) -> dict[str, Any]:
+            use_llm: bool = True, attached_docs: Optional[list[dict]] = None,
+            attach_letter: bool = True) -> dict[str, Any]:
     """Build a draft for an offer and/or a contact; returns subject, body and provenance."""
     profile = db.profile()
     offer = db.one("SELECT * FROM offers WHERE id = ?", (offer_id,)) if offer_id else None
@@ -335,12 +413,15 @@ def compose(*, offer_id: Optional[int] = None, contact_id: Optional[int] = None,
         raise ValueError("An offer or a contact is required.")
     language = (language or choose_language(offer, contact)).upper()
     if offer is not None:
-        draft = offer_draft(offer, contact, language, profile)
+        draft = offer_draft(offer, contact, language, profile, attached_docs=attached_docs)
         target = f"Offer: {offer['title']} at {offer.get('org')}\n{offer.get('description') or ''}"
     else:
-        draft = outreach_draft(contact, language, profile)
-        papers = "; ".join(item.get("text", "") for item in contact.get("evidence") or [] if item.get("type") == "paper")
-        target = f"Researcher: {contact['name']}, {contact.get('org')}\nTopics: {', '.join(contact.get('topics') or [])}\nRecent papers: {papers}"
+        # Researchers: your Apps Script e-mail is the message, the formal letter goes as the attached cover letter.
+        letter = outreach_draft(contact, language, profile, attached_docs=attached_docs)
+        email = outreach.initial_email(contact, language, profile, _documents(attached_docs, language), letter=attach_letter)
+        return {"subject": email["subject"], "letter": letter["body"], "body": email["body"], "language": language,
+                "generator": "apps-script template", "recipient": contact.get("email") or "", "kind": "spontaneous",
+                "warning": outreach.needs_checking(contact)}
     generator = "template"
     if use_llm:
         improved = polish(draft, target=target, language=language, profile=profile)
@@ -348,40 +429,108 @@ def compose(*, offer_id: Optional[int] = None, contact_id: Optional[int] = None,
             draft, generator = improved, f"gemini:{config.GEMINI_MODEL}"
     # The full text becomes the attached cover letter; the e-mail itself stays short.
     return {"subject": draft["subject"], "letter": draft["body"],
-            "body": cover_note(offer, contact, language, profile, target), "language": language, "generator": generator,
+            "body": cover_note(offer, contact, language, profile, target, attached_docs=attached_docs, attach_letter=attach_letter),
+            "language": language, "generator": generator,
             "recipient": (contact or {}).get("email") or "", "kind": "offer" if offer else "spontaneous"}
 
 
-def cover_note(offer: Optional[dict], contact: Optional[dict], language: str, profile: dict, context: str) -> str:
+def _email_attachment_closing(language: str = "EN", attached_docs: Optional[list[Any]] = None, attach_letter: bool = True, is_spontaneous: bool = False) -> str:
+    """Accurately summarize what is attached directly to the email message."""
+    # Support both (language, docs) and (docs, language) argument order
+    if isinstance(language, (list, tuple)) or (language is None and isinstance(attached_docs, str)):
+        actual_docs = language
+        actual_lang = str(attached_docs or "EN").upper()
+    else:
+        actual_lang = str(language or "EN").upper()
+        actual_docs = attached_docs
+
+    if actual_docs is None:
+        has_cv = True
+        has_transcripts = False
+        has_certs = False
+    else:
+        normalized = [dict(d) if hasattr(d, "keys") else (d if isinstance(d, dict) else {}) for d in actual_docs]
+        has_cv = any(d.get("doc_type") == "cv" for d in normalized)
+        has_transcripts = any(d.get("doc_type") == "transcript" for d in normalized)
+        has_certs = any(d.get("doc_type") in ("certificate", "cover_letter", "other") for d in normalized)
+
+    if actual_lang == "FR":
+        items = []
+        if attach_letter:
+            items.append("une lettre de motivation" if is_spontaneous else "ma lettre de motivation")
+        if has_cv:
+            items.append("mon CV")
+        if has_transcripts:
+            items.append("mes relevés de notes")
+        if has_certs:
+            items.append("mes pièces complémentaires")
+
+        call = "Merci d'avance pour votre temps." if is_spontaneous else "Je suis disponible pour un échange quand cela vous convient."
+        if not items:
+            return f"Mon CV et mes relevés de notes sont disponibles sur demande. {call}"
+        elif len(items) == 1:
+            return f"Vous trouverez {items[0]} en pièce jointe. {call}"
+        elif len(items) == 2:
+            first = items[0][0].upper() + items[0][1:]
+            return f"{first} et {items[1]} sont en pièces jointes. {call}"
+        else:
+            first_part = ", ".join(items[:-1])
+            first_part = first_part[0].upper() + first_part[1:]
+            return f"{first_part} et {items[-1]} sont en pièces jointes. {call}"
+    else:
+        items = []
+        if attach_letter:
+            items.append("a one-page cover letter" if is_spontaneous else "my cover letter")
+        if has_cv:
+            items.append("my CV")
+        if has_transcripts:
+            items.append("academic transcripts")
+        if has_certs:
+            items.append("supporting documents")
+
+        call = "Thank you for your time." if is_spontaneous else "I would be glad to talk whenever suits you."
+        if not items:
+            return f"My CV and transcripts are available upon request. {call}"
+        elif len(items) == 1:
+            first = items[0][0].upper() + items[0][1:]
+            return f"{first} is attached. {call}"
+        elif len(items) == 2:
+            first = items[0][0].upper() + items[0][1:]
+            return f"{first} and {items[1]} are attached. {call}"
+        else:
+            first_part = ", ".join(items[:-1])
+            first_part = first_part[0].upper() + first_part[1:]
+            return f"{first_part}, and {items[-1]} are attached. {call}"
+
+
+def cover_note(offer: Optional[dict], contact: Optional[dict], language: str, profile: dict, context: str,
+               attached_docs: Optional[list[dict]] = None, attach_letter: bool = True) -> str:
     """The short message typed into the e-mail; the detail lives in the attached letter and CV."""
     experience = (pick_experiences(profile, context, 1) or [None])[0]
     short = (experience or {}).get("short_fr" if language == "FR" else "short_en", "")
     months, availability = profile["duration_months"], _availability(profile, language)
     signature = f"{profile['full_name']}\n{profile['phone']}\n{profile.get('linkedin') or ''}".strip()
+    is_spontaneous = offer is None
+    closing = _email_attachment_closing(language, attached_docs, attach_letter=attach_letter, is_spontaneous=is_spontaneous)
+
     if language == "FR":
         greeting = f"Bonjour {contact['name']}," if contact else "Bonjour,"
         if offer is not None:
             opening = (f"Je vous écris au sujet de votre offre « {offer['title']} ». Je suis en dernière année à l'École Nationale "
                        f"Polytechnique d'Alger, option Data Science et IA, et je cherche mon stage de fin d'études de {months} mois, {availability}.")
-            closing = "Ma lettre de motivation et mon CV sont en pièces jointes. Je suis disponible pour un échange quand cela vous convient."
         else:
             papers = [item for item in (contact.get("evidence") or []) if item.get("type") == "paper"]
             about = f"votre article « {papers[0]['text']} »" if papers else "vos travaux récents"
             opening = (f"Je suis en dernière année à l'École Nationale Polytechnique d'Alger, option Data Science et IA. Je vous écris "
                        f"parce que {about} recoupe ce sur quoi je souhaite travailler pendant mon stage de fin d'études ({months} mois, {availability}).")
-            closing = ("Auriez-vous, vous ou un membre de votre équipe, un sujet ouvert sur cette période ? Vous trouverez en pièces "
-                       "jointes mon CV et une lettre d'une page. Merci d'avance pour votre temps.")
         return "\n\n".join(part for part in (greeting, opening, short, closing, "Bien cordialement,\n" + signature) if part)
     greeting = f"Dear {contact['name']}," if contact else "Hello,"
     if offer is not None:
         opening = (f"I am writing about your “{offer['title']}” opening. I am in my final year at École Nationale Polytechnique in "
                    f"Algiers, Data Science and AI track, and I am looking for my {months}-month final-year internship, {availability}.")
-        closing = "My cover letter and CV are attached. I would be glad to talk whenever suits you."
     else:
         papers = [item for item in (contact.get("evidence") or []) if item.get("type") == "paper"]
         about = f"your paper “{papers[0]['text']}”" if papers else "your recent work"
         opening = (f"I am in my final year at École Nationale Polytechnique in Algiers, Data Science and AI track. I am writing because "
                    f"{about} is close to what I want to work on during my final-year internship ({months} months, {availability}).")
-        closing = ("Would you, or someone in your group, have a topic open for that period? My CV and a one-page letter are "
-                   "attached. Thank you for your time.")
     return "\n\n".join(part for part in (greeting, opening, short, closing, "Best regards,\n" + signature) if part)

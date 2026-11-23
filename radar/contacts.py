@@ -88,12 +88,14 @@ def harvest_alumni(log: Log) -> tuple[int, bool]:
                         if not home:
                             continue
                         _, was_new = db.upsert_contact(connection, {
-                            "name": clean(author["display_name"]), "role": "Researcher",
+                            "name": clean(author["display_name"]), "role": "Researcher (ENP Alumnus)",
+                            "role_category": "alumni", "role_verified": 1, "confidence": 75, "email_verified": 0,
                             "org": clean(home.get("display_name")), "country": home.get("country_code"),
                             "url": author["id"], "orcid": (author.get("orcid") or "").replace("https://orcid.org/", "") or None,
                             "openalex_id": author["id"].rsplit("/", 1)[-1], "kind": "alumni", "topics": topics,
-                            "evidence": [{"type": "affiliation", "text": f"Has published with an affiliation at {institution_name} (OpenAlex affiliation history)", "url": author["id"]}],
+                            "evidence": [{"type": "affiliation", "text": f"Has published with an affiliation at {institution_name} (OpenAlex affiliation history)", "url": author["id"], "retrieved_at": date.today().isoformat()}],
                             "relevance": min(100, relevance + 15),
+                            "lookup_status": "pending",
                         })
                         created += was_new
                 cursor = (page.get("meta") or {}).get("next_cursor") if len(page.get("results", [])) == 200 else None
@@ -153,8 +155,10 @@ def harvest_experts(log: Log) -> tuple[int, bool]:
                         record["evidence"].append({
                             "type": "paper", "text": title, "year": (work.get("publication_date") or "")[:4],
                             "url": work.get("doi") or work.get("id"), "topic": topic,
+                            "retrieved_at": date.today().isoformat(),
                         })
                     record["senior"] = record["senior"] or position == "last"
+                    record["corresponding"] = record.get("corresponding") or bool(authorship.get("is_corresponding"))
     return _store_experts(people, log), True
 
 
@@ -166,11 +170,15 @@ def _store_experts(people: dict[str, dict[str, Any]], log: Log) -> int:
             relevance = min(100, 30 + 9 * len(record["evidence"]) + 6 * len(record["topics"])
                             + (12 if record["senior"] else 0) + max(0, 14 - 3 * record["rank"])
                             + {"tier1": 14, "tier2": 9, "mena": 7, "tier3": 3}.get(record["tier"], 0))
+            role_category = "group_lead" if record["senior"] else ("corresponding_author" if record.get("corresponding") else "researcher")
+            role_title = "Senior author / group lead" if record["senior"] else ("Corresponding author" if record.get("corresponding") else "Researcher")
+            confidence = 85 if record["senior"] else 75
             _, was_new = db.upsert_contact(connection, {
-                "name": record["name"], "role": "Senior author / group lead" if record["senior"] else "Researcher",
+                "name": record["name"], "role": role_title,
+                "role_category": role_category, "role_verified": 1, "confidence": confidence, "email_verified": 0,
                 "org": record["org"], "country": record["country"], "url": record["url"], "orcid": record["orcid"],
                 "openalex_id": record["openalex_id"], "kind": "expert", "topics": record["topics"],
-                "evidence": record["evidence"], "relevance": relevance,
+                "evidence": record["evidence"], "relevance": relevance, "lookup_status": "pending",
             })
             created += was_new
     log(f"Topic experts: {len(people)} active researcher(s) matched, {created} new.")
@@ -310,25 +318,51 @@ def enrich_contact(contact_id: int) -> dict[str, Any]:
         raise KeyError(contact_id)
     if contact.get("email"):
         return {"email": contact["email"], "source": contact.get("email_source"), "found": True}
+
+    today = date.today().isoformat()
     result = find_public_email(contact)
     if result is None:
         if net.is_cooling_down("api.openalex.org"):
-            # The publication list could not be read (daily quota): inconclusive, so try again later.
+            # Inconclusive due to rate-limit: record cooldown status so we don't hammer it
+            db.execute(
+                "UPDATE contacts SET lookup_status = 'cooldown', last_lookup_at = ? WHERE id = ?",
+                (today, contact_id),
+            )
             return {"found": False, "retry": True}
-        db.execute("UPDATE contacts SET notes = coalesce(notes, '') || ? WHERE id = ? AND coalesce(notes, '') NOT LIKE '%No public e-mail found%'",
-                   (f"\nNo public e-mail found automatically on {date.today().isoformat()} — check the profile page.", contact_id))
+        db.execute(
+            """UPDATE contacts SET
+                 lookup_status = 'not_found',
+                 last_lookup_at = ?,
+                 notes = coalesce(notes, '') || ?
+               WHERE id = ? AND coalesce(notes, '') NOT LIKE '%No public e-mail found%'""",
+            (today, f"\nNo public e-mail found automatically on {today} — check the profile page.", contact_id),
+        )
         return {"found": False}
+
     email, source = result
-    db.execute("UPDATE contacts SET email = ?, email_source = ? WHERE id = ?", (email, source, contact_id))
-    return {"email": email, "source": source, "found": True}
+    new_confidence = min(100, int(contact.get("confidence") or 70) + 15)
+    db.execute(
+        """UPDATE contacts SET
+             email = ?, email_source = ?, email_verified = 1,
+             confidence = ?, lookup_status = 'found', last_lookup_at = ?
+           WHERE id = ?""",
+        (email, source, new_confidence, today, contact_id),
+    )
+    return {"email": email, "source": source, "found": True, "confidence": new_confidence}
 
 
 def auto_enrich(limit: int, log: Log) -> int:
-    """Look up published addresses for the most relevant contacts still missing one."""
+    """Look up published addresses for the most relevant contacts still missing one.
+    Avoids retrying contacts checked within 14 days whose previous result was not_found.
+    """
+    cutoff = (date.today() - timedelta(days=14)).isoformat()
     pending = db.rows(
-        "SELECT id, name FROM contacts WHERE email IS NULL AND status != 'ignored' AND kind != 'offer' "
-        "AND coalesce(notes, '') NOT LIKE '%No public e-mail found%' "
-        "ORDER BY (evidence LIKE '%arxiv%') DESC, relevance DESC LIMIT ?", (limit,))
+        """SELECT id, name FROM contacts
+           WHERE email IS NULL AND status != 'ignored' AND kind != 'offer'
+             AND (last_lookup_at IS NULL OR last_lookup_at < ? OR lookup_status = 'cooldown')
+           ORDER BY (evidence LIKE '%arxiv%') DESC, relevance DESC LIMIT ?""",
+        (cutoff, limit),
+    )
     found = 0
     for contact in pending:
         try:

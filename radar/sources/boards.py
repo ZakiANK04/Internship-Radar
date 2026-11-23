@@ -123,6 +123,7 @@ def hellowork() -> Source:
                 uid=f"hellowork:{identifier}", title=title, org=card["company"] or "Employer on HelloWork", url=url,
                 location=location, country_hint="FR", description=description, posted_at=posted,
                 deadline=deadline, trusted_internship=True,
+                pay_hint=" ".join(re.findall(r"\d[\d  ]*(?:[.,]\d+)?\s*€\s*/\s*(?:mois|an|heure)", card["text"]))[:120],
             ))
         return offers
 

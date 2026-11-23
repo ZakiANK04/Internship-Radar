@@ -6,6 +6,7 @@ exposed outside this machine.
 
 from __future__ import annotations
 
+import html
 import json
 import mimetypes
 import re
@@ -16,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Optional
 from urllib.parse import parse_qs, quote, urlparse
 
-from . import __version__, config, contacts, db, mailer, pipeline, scoring, writer
+from . import __version__, config, contacts, db, documents, inbox, mailer, notify, pay, pipeline, scoring, sources, workflow, writer
 
 
 class ApiError(Exception):
@@ -28,7 +29,7 @@ class ApiError(Exception):
 # ------------------------------------------------------------------- queries
 OFFER_LIST_COLUMNS = (
     "id, source, source_kind, title, org, country, city, tier, url, lang, contract, posted_at, deadline, remote, "
-    "score, flags, tags, status, active, first_seen, last_seen, (llm IS NOT NULL) AS reviewed, "
+    "score, flags, tags, pay, status, active, first_seen, last_seen, (llm IS NOT NULL) AS reviewed, "
     "(SELECT count(*) FROM offer_contacts oc WHERE oc.offer_id = offers.id) AS contact_count, "
     "(SELECT a.stage FROM applications a WHERE a.offer_id = offers.id ORDER BY a.id DESC LIMIT 1) AS application_stage"
 )
@@ -37,10 +38,12 @@ OFFER_LIST_COLUMNS = (
 def api_state(_: dict) -> dict:
     priorities = db.priorities()
     floor = int(priorities.get("min_score") or 0)
+    visible, visible_params = workflow.visible_offers_sql()
     offers = db.one(
         "SELECT count(*) AS total, sum(score >= 85) AS grade_a, sum(score >= 72 AND score < 85) AS grade_b, "
-        "sum(first_seen >= ?) AS fresh FROM offers WHERE active = 1 AND status != 'dismissed' AND score >= ?",
-        ((date.today() - timedelta(days=2)).isoformat(), floor)) or {}
+        f"sum(first_seen >= ?) AS fresh FROM offers WHERE {visible}",
+        ((date.today() - timedelta(days=2)).isoformat(), *visible_params)) or {}
+    offers["hidden"] = (db.one("SELECT count(*) AS n FROM offers WHERE active = 1 AND status != 'dismissed'") or {}).get("n", 0) - int(offers.get("total") or 0)
     by_tier = db.rows("SELECT tier, count(*) AS n FROM offers WHERE active = 1 AND status != 'dismissed' AND score >= ? GROUP BY tier", (floor,))
     by_country = db.rows("SELECT country, count(*) AS n, max(score) AS best FROM offers WHERE active = 1 AND status != 'dismissed' "
                          "AND score >= ? GROUP BY country ORDER BY n DESC", (floor,))
@@ -58,29 +61,97 @@ def api_state(_: dict) -> dict:
         "by_tier": {row["tier"]: row["n"] for row in by_tier}, "by_country": by_country, "stages": stages,
         "contacts": contact_counts, "email_count": (db.one("SELECT count(*) AS n FROM contacts WHERE email IS NOT NULL") or {}).get("n", 0),
         "health": {key: int(value or 0) for key, value in health.items()}, "last_run": last_run, "run": pipeline.status(),
-        "llm": writer.llm_status(), "closing": closing, "agents": list(pipeline.AGENTS), "mail": mailer.public_settings(),
+        "llm": writer.llm_status(), "closing": closing, "agents": list(pipeline.AGENTS), "mail": mailer.public_settings(), "pay": pay_overview(floor),
+        "view_defaults": workflow.view_defaults(), "session_stats": workflow.stats(),
+        "todo": (db.one("SELECT count(*) AS n FROM applications WHERE stage IN ('replied', 'bounced') "
+                        "OR (sent_at IS NULL AND stage IN ('to_review', 'ready') AND coalesce(recipient, '') != '')") or {}).get("n", 0),
+        "automation": {"inbox_enabled": bool(db.get_setting("inbox_enabled", True)), "notify_enabled": bool(db.get_setting("notify_enabled", True)),
+                       "notify_to": db.get_setting("notify_to") or db.profile().get("email") or "",
+                       "inbox_checked_at": db.get_setting("inbox_checked_at"), "inbox_error": db.get_setting("inbox_error") or ""},
     }
+
+
+def pay_overview(floor: int) -> dict:
+    """Stated internship pay (normalised to euros per month) per region, for the Today page."""
+    import json as _json
+    from statistics import median
+
+    groups: dict[str, list[int]] = {}
+    totals = {"stated": 0, "legal_min": 0, "unknown": 0, "unpaid": 0}
+    for row in db.rows("SELECT tier, pay FROM offers WHERE active = 1 AND status != 'dismissed' AND score >= ? AND pay IS NOT NULL", (floor,)):
+        info = _json.loads(row["pay"])
+        totals[info.get("source", "unknown")] = totals.get(info.get("source", "unknown"), 0) + 1
+        if info.get("source") == "stated" and info.get("monthly_eur"):
+            groups.setdefault(row["tier"] or "remote", []).append(int(info["monthly_eur"]))
+    regions = {}
+    for tier, values in groups.items():
+        values.sort()
+        regions[tier] = {"n": len(values), "median": int(median(values)), "low": values[len(values) // 4], "high": values[(3 * len(values)) // 4],
+                         "min": values[0], "max": values[-1]}
+    return {"totals": totals, "regions": regions, "fr_min": pay.FR_MIN_MONTHLY, "fr_min_hourly": pay.FR_MIN_HOURLY}
+
+
+def api_researchers_import(params: dict) -> dict:
+    """Load an Excel researcher list, then find look-alikes in the background."""
+    import base64
+    import binascii
+
+    from . import researchers
+
+    body = params["body"]
+    filename = re.sub(r"[^A-Za-z0-9._ ()-]+", "_", str(body.get("filename") or "researchers.xlsx"))[:80]
+    if not filename.lower().endswith(".xlsx"):
+        raise ApiError(400, "Please choose an Excel file (.xlsx).")
+    try:
+        content = base64.b64decode(body.get("data") or "", validate=True)
+    except (binascii.Error, ValueError):
+        raise ApiError(400, "The file could not be read.")
+    if not content or len(content) > 5_000_000:
+        raise ApiError(400, "The file is empty or larger than 5 MB.")
+    folder = config.DATA_DIR / "imports"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / filename
+    target.write_bytes(content)
+    try:
+        result = researchers.import_spreadsheet(target)
+    except Exception as exc:  # openpyxl raises many kinds of errors on malformed files
+        raise ApiError(400, f"Could not read this spreadsheet: {exc}")
+    db.set_setting("similar_requested", True)
+    pipeline.start_background(["contacts"], trigger="import")
+    return result
+
+
+def api_researchers_similar(_: dict) -> dict:
+    db.set_setting("similar_requested", True)
+    return {"started": pipeline.start_background(["contacts"], trigger="similar")}
 
 
 def api_offers(_: dict) -> dict:
     offers = db.rows(f"SELECT {OFFER_LIST_COLUMNS} FROM offers WHERE active = 1 OR status NOT IN ('new', 'dismissed') ORDER BY score DESC")
     for offer in offers:
-        db.decode(offer, "flags", "tags")
+        db.decode(offer, "flags", "tags", "pay")
+        offer["pay_label"] = pay.label(offer["pay"])
+        offer["ineligible"] = workflow.ineligible(offer["flags"])
     return {"offers": offers}
 
 
 def api_offer(params: dict) -> dict:
-    offer = db.decode(db.one("SELECT * FROM offers WHERE id = ?", (params["id"],)), "flags", "tags", "score_parts", "llm")
+    offer = db.decode(db.one("SELECT * FROM offers WHERE id = ?", (params["id"],)), "flags", "tags", "score_parts", "llm", "pay")
     if offer is None:
         raise ApiError(404, "Unknown offer.")
+    offer["pay_label"] = pay.label(offer["pay"])
     offer["breakdown"] = scoring.describe_parts(offer["score_parts"] or {})
     offer["contacts"] = [db.decode(row, "topics", "evidence") for row in db.rows(
-        "SELECT c.* FROM contacts c JOIN offer_contacts oc ON oc.contact_id = c.id WHERE oc.offer_id = ?", (offer["id"],))]
+        """SELECT c.*, oc.relevance AS offer_relevance, oc.role AS offer_role
+           FROM contacts c JOIN offer_contacts oc ON oc.contact_id = c.id
+           WHERE oc.offer_id = ? ORDER BY c.confidence DESC, c.relevance DESC""", (offer["id"],))]
     employer = (offer.get("org") or "").split(" — ")[0].strip()
     offer["related_contacts"] = [db.decode(row, "topics", "evidence") for row in db.rows(
         "SELECT * FROM contacts WHERE status != 'ignored' AND kind IN ('alumni', 'expert') AND org LIKE ? "
-        "ORDER BY relevance DESC LIMIT 4", (f"%{employer[:30]}%",))] if len(employer) >= 4 else []
+        "ORDER BY confidence DESC, relevance DESC LIMIT 4", (f"%{employer[:30]}%",))] if len(employer) >= 4 else []
     offer["applications"] = db.rows("SELECT id, stage, language, subject, updated_at FROM applications WHERE offer_id = ? ORDER BY id DESC", (offer["id"],))
+    offer["available_documents"] = documents.list_documents()
+    offer["default_document_ids"] = documents.get_defaults_for_language(offer.get("lang") or "EN")
     return {"offer": offer}
 
 
@@ -105,20 +176,66 @@ def api_contacts(_: dict) -> dict:
     people = db.rows(
         "SELECT c.*, (SELECT count(*) FROM offer_contacts oc WHERE oc.contact_id = c.id) AS offer_count, "
         "(SELECT a.stage FROM applications a WHERE a.contact_id = c.id ORDER BY a.id DESC LIMIT 1) AS application_stage "
-        "FROM contacts c ORDER BY c.relevance DESC, c.name")
+        "FROM contacts c ORDER BY c.is_starred DESC, c.confidence DESC, c.relevance DESC, c.name")
+    from . import outreach
+
+    from . import places
+
     for person in people:
         db.decode(person, "topics", "evidence")
-    return {"contacts": people}
+        person["needs_checking"] = outreach.needs_checking(person)
+        person.update(places.locate(person))
+        person.pop("source_row", None)  # only needed on the server
+    return {"contacts": people, "areas": {key: spec["label"] for key, spec in places.AREAS.items()}}
+
+
+def api_places_find(params: dict) -> dict:
+    """Find researchers publishing AI work in an area (Nice · Côte d'Azur), then their published addresses."""
+    from . import places
+
+    area = str(params["body"].get("area") or "cote_azur")
+    if area not in places.AREAS:
+        raise ApiError(400, "Unknown area.")
+    messages: list[str] = []
+    result = places.find_in_area(area, log=lambda message, *_: messages.append(str(message)))
+    if result.get("openalex_ids"):  # address lookups take a while: they continue in the background
+        threading.Thread(target=places.enrich_area, args=(result["openalex_ids"],),
+                         kwargs={"log": lambda message, *_: print(f"[places   ] {message}", flush=True)}, daemon=True).start()
+    result.pop("openalex_ids", None)
+    return {**result, "log": messages}
+
+
+def api_contact_add(params: dict) -> dict:
+    """Add researchers you found yourself — one person, or a pasted list — and optionally write their e-mails now."""
+    from . import researchers
+
+    body = params["body"]
+    try:
+        if body.get("list") is not None:
+            result = researchers.add_list(str(body["list"]))
+        else:
+            single = researchers.add_person(body.get("person") or {})
+            result = {"added": [single["name"]] if single["created"] else [], "existing": [] if single["created"] else [single["name"]],
+                      "problems": [], "ids": [single["id"]], "message": single["message"]}
+    except ValueError as exc:
+        raise ApiError(400, str(exc))
+    result["drafts"] = 0
+    if body.get("prepare") and result["ids"]:
+        prepared = workflow.prepare_outreach(contact_ids=result["ids"])
+        result["drafts"], result["skipped"] = prepared["created"], prepared["skipped"]
+    return result
 
 
 def api_contact_update(params: dict) -> dict:
     body = params["body"]
-    allowed = {key: body[key] for key in ("status", "notes", "email", "role", "url") if key in body}
+    allowed = {key: body[key] for key in ("status", "notes", "email", "role", "url", "is_starred") if key in body}
     if not allowed:
         raise ApiError(400, "Nothing to update.")
     if "email" in allowed:
         allowed["email"] = (allowed["email"] or "").strip() or None
         allowed["email_source"] = "entered manually" if allowed["email"] else None
+    if "is_starred" in allowed:
+        allowed["is_starred"] = 1 if bool(allowed["is_starred"]) else 0
     assignments = ", ".join(f"{key} = ?" for key in allowed)
     db.execute(f"UPDATE contacts SET {assignments} WHERE id = ?", (*allowed.values(), params["id"]))
     return {"ok": True}
@@ -141,19 +258,23 @@ def api_directory(_: dict) -> dict:
 
 
 def api_applications(_: dict) -> dict:
-    return {"applications": db.rows(
+    rows = db.rows(
         """SELECT a.*, o.title AS offer_title, o.org AS offer_org, o.url AS offer_url, o.score AS offer_score,
                   o.country AS offer_country, o.deadline AS offer_deadline,
                   c.name AS contact_name, c.org AS contact_org, c.email AS contact_email
            FROM applications a LEFT JOIN offers o ON o.id = a.offer_id LEFT JOIN contacts c ON c.id = a.contact_id
-           ORDER BY a.updated_at DESC""")}
+           ORDER BY a.updated_at DESC""")
+    # Attachments are loaded when a draft is opened (one query per row made this list take 14 s).
+    return {"applications": rows}
 
 
 def api_draft(params: dict) -> dict:
     body = params["body"]
+    doc_ids = body.get("document_ids")
     try:
         draft = writer.compose(offer_id=body.get("offer_id"), contact_id=body.get("contact_id"),
-                               language=body.get("language"), use_llm=bool(body.get("use_llm", True)))
+                               language=body.get("language"), use_llm=bool(body.get("use_llm", True)),
+                               attached_docs=doc_ids)
     except ValueError as exc:
         raise ApiError(400, str(exc))
     if body.get("save", True):
@@ -165,9 +286,13 @@ def api_draft(params: dict) -> dict:
         if existing:
             db.execute("UPDATE applications SET language = ?, recipient = ?, subject = ?, body = ?, letter = ?, generator = ?, updated_at = ? WHERE id = ?",
                        (draft["language"], draft["recipient"], draft["subject"], draft["body"], draft["letter"], draft["generator"], db.now(), existing["id"]))
+            # The language may have changed: re-pick the CV, transcript, etc. unless documents were chosen by hand.
+            documents.set_application_documents(existing["id"], doc_ids if doc_ids is not None else documents.get_defaults_for_language(draft["language"]))
             draft["application_id"] = existing["id"]
+            draft["documents"] = documents.get_application_documents(existing["id"])
             return draft
-        draft["application_id"] = pipeline.save_application(offer_id=body.get("offer_id"), contact_id=body.get("contact_id"), draft=draft)
+        draft["application_id"] = pipeline.save_application(offer_id=body.get("offer_id"), contact_id=body.get("contact_id"), draft=draft, selected_document_ids=doc_ids)
+        draft["documents"] = documents.get_application_documents(draft["application_id"])
         if body.get("offer_id"):
             db.execute("UPDATE offers SET status = 'shortlisted' WHERE id = ? AND status = 'new'", (body["offer_id"],))
     return draft
@@ -246,6 +371,59 @@ def api_mail_test(_: dict) -> dict:
     return {"results": mailer.test_accounts()}
 
 
+def api_google_client(params: dict) -> dict:
+    from . import google_mail
+
+    body = params["body"]
+    try:
+        if body.get("remove"):
+            google_mail.remove_client()
+        else:
+            google_mail.set_client(str(body.get("json") or ""), str(body.get("client_id") or ""), str(body.get("client_secret") or ""))
+    except mailer.MailError as exc:
+        raise ApiError(400, str(exc))
+    return mailer.public_settings()
+
+
+def api_google_connect(params: dict) -> dict:
+    from . import google_mail
+
+    body = params["body"]
+    try:
+        return {"url": google_mail.start(int(body.get("index") or 0), bool(body.get("read", True)), params["port"])}
+    except mailer.MailError as exc:
+        raise ApiError(400, str(exc))
+
+
+def api_google_disconnect(params: dict) -> dict:
+    from . import google_mail
+
+    return google_mail.disconnect(int(params["body"].get("index") or 0))
+
+
+def google_return_page(query: dict) -> bytes:
+    """The page Google sends the browser back to after the consent screen."""
+    from . import google_mail
+
+    try:
+        result = google_mail.finish(query)
+        title, ok = "Connected", True
+        text = (f"<b>{html.escape(result['address'])}</b> is connected. The Radar can now send "
+                + ("and read the replies to " if result["read"] else "") + "your applications from it.")
+    except mailer.MailError as exc:
+        title, ok, text = "Not connected", False, html.escape(str(exc))
+    colour = "#0e9f6e" if ok else "#cf3f36"
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title} — Internship Radar</title>
+<style>body{{font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:#f4f6f8;color:#1b2430;display:grid;place-items:center;min-height:100vh;margin:0}}
+.card{{background:#fff;border:1px solid #dde3ea;border-radius:14px;padding:28px 32px;max-width:520px;box-shadow:0 8px 30px rgba(0,0,0,.06)}}
+h1{{margin:0 0 8px;font-size:20px;color:{colour}}}a{{display:inline-block;margin-top:16px;background:#0e9f6e;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none}}
+@media (prefers-color-scheme:dark){{body{{background:#0a0e13;color:#e6edf3}}.card{{background:#111820;border-color:#212d3a}}}}</style></head>
+<body><div class="card"><h1>{"✓ " if ok else ""}{title}</h1><p>{text}</p><a href="/#settings">Back to the Radar</a></div>
+<script>try {{ if (window.opener) {{ window.opener.postMessage({{ radarGoogle: {str(ok).lower()} }}, location.origin); setTimeout(() => window.close(), 1800); }} }} catch (e) {{}}</script>
+</body></html>""".encode("utf-8")
+
+
 def api_application_delete(params: dict) -> dict:
     db.execute("DELETE FROM applications WHERE id = ?", (params["id"],))
     return {"ok": True}
@@ -257,6 +435,82 @@ def api_follow_up(params: dict) -> dict:
     if application is None:
         raise ApiError(404, "Unknown application.")
     return writer.follow_up_draft(application, application["language"], db.profile())
+
+
+def api_follow_up_create(params: dict) -> dict:
+    new_id = pipeline.prepare_follow_up(int(params["id"]))
+    if new_id is None:
+        raise ApiError(400, "Only an application that was sent can be followed up.")
+    return {"application_id": new_id}
+
+
+def api_session(_: dict) -> dict:
+    return workflow.session()
+
+
+def api_bulk(params: dict) -> dict:
+    body = params["body"]
+    ids = [int(item) for item in body.get("ids") or [] if str(item).isdigit()]
+    action = str(body.get("action") or "")
+    if not ids or action not in ("approve", "delete", "unapprove", "declined", "closed", "interview", "sent"):
+        raise ApiError(400, "Choose at least one e-mail and a valid action.")
+    return workflow.bulk(ids, action)
+
+
+def api_outreach_prepare(params: dict) -> dict:
+    body = params["body"]
+    ids = [int(item) for item in body.get("contact_ids") or [] if str(item).isdigit()] or None
+    return workflow.prepare_outreach(limit=max(1, min(60, int(body.get("limit") or 25))), contact_ids=ids)
+
+
+def api_outreach_sooner(_: dict) -> dict:
+    return workflow.send_sooner()
+
+
+def api_outreach_send(params: dict) -> dict:
+    ids = [int(item) for item in params["body"].get("contact_ids") or [] if str(item).isdigit()]
+    try:
+        return workflow.send_to(ids)
+    except mailer.MailError as exc:
+        raise ApiError(400, str(exc))
+
+
+def api_offer_kit(params: dict) -> dict:
+    try:
+        return workflow.kit(int(params["id"]), params["body"].get("language") if params.get("body") else None)
+    except KeyError:
+        raise ApiError(404, "Unknown offer.")
+
+
+def api_offer_applied(params: dict) -> dict:
+    try:
+        return workflow.mark_applied(int(params["id"]))
+    except KeyError:
+        raise ApiError(404, "Unknown offer.")
+
+
+def api_inbox_check(_: dict) -> dict:
+    try:
+        result = inbox.check(lambda *args: None)
+    except Exception as exc:
+        raise ApiError(502, f"The mailbox could not be read: {exc}")
+    return {**result, "error": db.get_setting("inbox_error") or ""}
+
+
+def api_automation(params: dict) -> dict:
+    body = params["body"]
+    for key in ("inbox_enabled", "notify_enabled"):
+        if key in body:
+            db.set_setting(key, bool(body[key]))
+    if "notify_to" in body:
+        address = str(body["notify_to"] or "").strip()
+        if address and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[A-Za-z]{2,}", address):
+            raise ApiError(400, "That notification address is not valid.")
+        db.set_setting("notify_to", address)
+    if body.get("send_test"):
+        if not notify.summary(lambda *args: None, force=True):
+            raise ApiError(502, "The test summary could not be sent — check the e-mail settings.")
+    return {"ok": True}
 
 
 def api_run(params: dict) -> dict:
@@ -303,6 +557,16 @@ def api_launchpad(_: dict) -> dict:
             {"label": query, "url": f"https://www.linkedin.com/jobs/search/?keywords={quote(query)}&location=France&f_JT=I&f_TPR=r604800"} for query in queries_fr]},
         {"group": "France", "name": "Indeed France", "links": [
             {"label": query, "url": f"https://fr.indeed.com/jobs?q={quote(query)}&l=France&sc=0kf%3Ajt%28internship%29%3B"} for query in queries_fr[:3]]},
+        {"group": "Paris schools & labs", "name": "Paris-Saclay M2 internship catalogue", "links": [
+            {"label": "All internships (university network or VPN)", "url": "https://gsweb1.dsi.universite-paris-saclay.fr/internship/list"}]},
+        {"group": "Paris schools & labs", "name": "LinkedIn — Île-de-France research internships", "links": [
+            {"label": query, "url": f"https://www.linkedin.com/jobs/search/?keywords={quote(query)}&location=%C3%8Ele-de-France&f_JT=I&f_TPR=r604800"}
+            for query in ("stage recherche NLP", "stage laboratoire IA", "Efrei stage IA", "Télécom SudParis stage")]},
+        {"group": "Paris schools & labs", "name": "Lab boards the Radar cannot scan", "links": [
+            {"label": "Efrei Research Lab", "url": "https://www.efrei.fr/recherche/"},
+            {"label": "LIP6 AI2D internships", "url": "https://ai2d.lip6.fr/taxonomy/term/3"},
+            {"label": "LIRIS internship offers", "url": "https://liris.cnrs.fr/en/emplois/offres-de-stage"},
+            {"label": "ENS cognitive-science internships", "url": "https://master-cognitive-science.ens.psl.eu/en/jobs/"}]},
         {"group": "France", "name": "JobTeaser", "links": [
             {"label": query, "url": f"https://www.jobteaser.com/fr/job-offers?contract=internship&q={quote(query)}"} for query in queries_fr[:3]]},
         {"group": "Italy · Belgium · Germany · Luxembourg", "name": "LinkedIn", "links": [
@@ -330,6 +594,153 @@ def api_launchpad(_: dict) -> dict:
     return {"boards": boards}
 
 
+def api_documents(params: dict) -> dict:
+    query = params.get("query") or {}
+    doc_type = query.get("type", [None])[0]
+    lang = query.get("lang", [None])[0]
+    return {"documents": documents.list_documents(doc_type=doc_type, language=lang)}
+
+
+def api_document_get(params: dict) -> dict:
+    doc = documents.get_document(int(params["id"]))
+    if not doc:
+        raise ApiError(404, "Document not found.")
+    return {"document": doc}
+
+
+def api_document_add(params: dict) -> dict:
+    body = params["body"]
+    title = str(body.get("title") or "").strip()
+    doc_type = str(body.get("doc_type") or "cv").strip().lower()
+    language = str(body.get("language") or "ALL").strip().upper()
+    version = str(body.get("version") or "").strip()
+    notes = str(body.get("notes") or "").strip()
+    is_default = bool(body.get("is_default", False))
+
+    filename = str(body.get("filename") or "").strip()
+    b64_content = body.get("content_base64") or body.get("content_b64")
+    filepath = body.get("filepath")
+
+    if b64_content:
+        import base64
+        try:
+            file_bytes = base64.b64decode(b64_content)
+        except Exception as exc:
+            raise ApiError(400, f"Invalid base64 document content: {exc}")
+        if not filename:
+            filename = "document.pdf"
+    elif filepath:
+        clean_path = Path(str(filepath).replace("\\", "/"))
+        target = (config.ROOT_DIR / clean_path).resolve()
+        if config.ROOT_DIR.resolve() not in target.parents and target != config.ROOT_DIR:
+            raise ApiError(400, "File path escapes project directory.")
+        if not target.exists() or not target.is_file():
+            raise ApiError(404, f"File '{filepath}' not found.")
+        file_bytes = target.read_bytes()
+        if not filename:
+            filename = target.name
+    else:
+        raise ApiError(400, "Provide either content_base64 or filepath.")
+
+    try:
+        doc = documents.add_document(
+            file_bytes,
+            filename,
+            title=title or filename,
+            doc_type=doc_type,
+            language=language,
+            version=version,
+            notes=notes,
+            is_default=is_default,
+        )
+        return {"ok": True, "document": doc}
+    except documents.DocumentError as exc:
+        raise ApiError(400, str(exc))
+
+
+def api_document_update(params: dict) -> dict:
+    body = params["body"]
+    try:
+        doc = documents.update_document(int(params["id"]), **body)
+        return {"ok": True, "document": doc}
+    except documents.DocumentError as exc:
+        raise ApiError(400, str(exc))
+
+
+def api_documents_compress(params: dict) -> dict:
+    """Compress one document, or every large one when no id is given."""
+    doc_id = params["body"].get("id")
+    try:
+        results = [documents.compress_document(int(doc_id))] if doc_id else documents.compress_large()
+    except documents.DocumentError as exc:
+        raise ApiError(400, str(exc))
+    return {"results": results, "saved": sum(item["before"] - item["after"] for item in results),
+            "documents": documents.list_documents()}
+
+
+def api_document_restore(params: dict) -> dict:
+    try:
+        documents.restore_original(int(params["id"]))
+    except documents.DocumentError as exc:
+        raise ApiError(400, str(exc))
+    return {"documents": documents.list_documents()}
+
+
+def api_document_delete(params: dict) -> dict:
+    ok = documents.delete_document(int(params["id"]))
+    if not ok:
+        raise ApiError(404, "Document not found.")
+    return {"ok": True}
+
+
+def api_application_documents(params: dict) -> dict:
+    return {"documents": documents.get_application_documents(int(params["id"]))}
+
+
+def api_application_documents_set(params: dict) -> dict:
+    body = params["body"]
+    doc_ids = body.get("document_ids")
+    if not isinstance(doc_ids, list):
+        raise ApiError(400, "'document_ids' must be a list of document IDs.")
+    docs = documents.set_application_documents(int(params["id"]), doc_ids)
+    return {"ok": True, "documents": docs}
+
+
+def api_sources(_: dict) -> dict:
+    return {"sources": sources.list_sources_status()}
+
+
+def api_source_toggle(params: dict) -> dict:
+    source_id = params["id"]
+    enabled = bool(params["body"].get("enabled", True))
+    sources.set_source_enabled(source_id, enabled)
+    return {"ok": True, "sources": sources.list_sources_status()}
+
+
+def api_source_add(params: dict) -> dict:
+    body = params["body"]
+    ats = str(body.get("ats") or "").strip().lower()
+    token = str(body.get("token") or "").strip()
+    name = str(body.get("name") or "").strip()
+    group = str(body.get("group_name") or "Custom employers").strip()
+    extra = body.get("config") or {}
+    if not ats or not token:
+        raise ApiError(400, "Both 'ats' and 'token' are required.")
+    try:
+        src = sources.add_custom_source(ats, token, name, group_name=group, config_extra=extra)
+        return {"ok": True, "source": src}
+    except ValueError as exc:
+        raise ApiError(400, str(exc))
+
+
+def api_source_delete(params: dict) -> dict:
+    source_id = params["id"]
+    ok = sources.delete_custom_source(source_id)
+    if not ok:
+        raise ApiError(404, "Source not found or cannot be deleted.")
+    return {"ok": True}
+
+
 def eml_download(params: dict) -> tuple[bytes, str, str]:
     application = mailer.load_application(int(params["id"]))
     if application is None:
@@ -343,9 +754,13 @@ def eml_download(params: dict) -> tuple[bytes, str, str]:
 ROUTES: list[tuple[str, re.Pattern[str], Callable[[dict], Any]]] = [
     ("GET", re.compile(r"^/api/state$"), api_state),
     ("GET", re.compile(r"^/api/offers$"), api_offers),
+    ("POST", re.compile(r"^/api/researchers/import$"), api_researchers_import),
+    ("POST", re.compile(r"^/api/researchers/similar$"), api_researchers_similar),
     ("GET", re.compile(r"^/api/offers/(?P<id>\d+)$"), api_offer),
     ("POST", re.compile(r"^/api/offers/(?P<id>\d+)$"), api_offer_update),
     ("GET", re.compile(r"^/api/contacts$"), api_contacts),
+    ("POST", re.compile(r"^/api/places/find$"), api_places_find),
+    ("POST", re.compile(r"^/api/contacts/add$"), api_contact_add),
     ("POST", re.compile(r"^/api/contacts/(?P<id>\d+)$"), api_contact_update),
     ("POST", re.compile(r"^/api/contacts/(?P<id>\d+)/enrich$"), api_contact_enrich),
     ("GET", re.compile(r"^/api/directory$"), api_directory),
@@ -354,11 +769,37 @@ ROUTES: list[tuple[str, re.Pattern[str], Callable[[dict], Any]]] = [
     ("DELETE", re.compile(r"^/api/applications/(?P<id>\d+)$"), api_application_delete),
     ("POST", re.compile(r"^/api/applications/(?P<id>\d+)/approve$"), api_application_approve),
     ("POST", re.compile(r"^/api/applications/(?P<id>\d+)/send-now$"), api_application_send_now),
+    ("GET", re.compile(r"^/api/documents$"), api_documents),
+    ("POST", re.compile(r"^/api/documents$"), api_document_add),
+    ("GET", re.compile(r"^/api/documents/(?P<id>\d+)$"), api_document_get),
+    ("POST", re.compile(r"^/api/documents/(?P<id>\d+)$"), api_document_update),
+    ("DELETE", re.compile(r"^/api/documents/(?P<id>\d+)$"), api_document_delete),
+    ("POST", re.compile(r"^/api/documents/compress$"), api_documents_compress),
+    ("POST", re.compile(r"^/api/documents/(?P<id>\d+)/restore$"), api_document_restore),
+    ("GET", re.compile(r"^/api/applications/(?P<id>\d+)/documents$"), api_application_documents),
+    ("POST", re.compile(r"^/api/applications/(?P<id>\d+)/documents$"), api_application_documents_set),
+    ("GET", re.compile(r"^/api/sources$"), api_sources),
+    ("POST", re.compile(r"^/api/sources/(?P<id>[^/]+)/toggle$"), api_source_toggle),
+    ("POST", re.compile(r"^/api/sources/add$"), api_source_add),
+    ("DELETE", re.compile(r"^/api/sources/(?P<id>[^/]+)$"), api_source_delete),
     ("GET", re.compile(r"^/api/mail$"), api_mail_get),
     ("POST", re.compile(r"^/api/mail$"), api_mail_set),
     ("POST", re.compile(r"^/api/mail/test$"), api_mail_test),
+    ("POST", re.compile(r"^/api/google/client$"), api_google_client),
+    ("POST", re.compile(r"^/api/google/connect$"), api_google_connect),
+    ("POST", re.compile(r"^/api/google/disconnect$"), api_google_disconnect),
     ("GET", re.compile(r"^/api/applications/(?P<id>\d+)/follow-up$"), api_follow_up),
+    ("POST", re.compile(r"^/api/applications/(?P<id>\d+)/follow-up$"), api_follow_up_create),
     ("POST", re.compile(r"^/api/draft$"), api_draft),
+    ("GET", re.compile(r"^/api/session$"), api_session),
+    ("POST", re.compile(r"^/api/applications/bulk$"), api_bulk),
+    ("POST", re.compile(r"^/api/outreach/prepare$"), api_outreach_prepare),
+    ("POST", re.compile(r"^/api/outreach/send$"), api_outreach_send),
+    ("POST", re.compile(r"^/api/outreach/sooner$"), api_outreach_sooner),
+    ("POST", re.compile(r"^/api/offers/(?P<id>\d+)/kit$"), api_offer_kit),
+    ("POST", re.compile(r"^/api/offers/(?P<id>\d+)/applied$"), api_offer_applied),
+    ("POST", re.compile(r"^/api/inbox/check$"), api_inbox_check),
+    ("POST", re.compile(r"^/api/automation$"), api_automation),
     ("POST", re.compile(r"^/api/run$"), api_run),
     ("GET", re.compile(r"^/api/run/status$"), api_run_status),
     ("GET", re.compile(r"^/api/agents$"), api_agents),
@@ -401,6 +842,17 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"error": "Requests are only accepted from this machine."})
             return
         try:
+            if method == "GET" and (match := re.match(r"^/api/documents/(?P<id>\d+)/file$", path)):
+                doc = documents.get_document(int(match["id"]))
+                if not doc:
+                    raise ApiError(404, "Document not found.")
+                file_path = documents.get_document_path(doc)
+                if not file_path.exists() or not file_path.is_file():
+                    raise ApiError(404, "Document file not found on disk.")
+                content_type = doc.get("mime_type") or "application/octet-stream"
+                fname = doc.get("original_filename") or file_path.name
+                self._send(200, file_path.read_bytes(), content_type, {"Content-Disposition": f'inline; filename="{fname}"'})
+                return
             if method == "GET" and (match := re.match(r"^/api/applications/(?P<id>\d+)/(?P<kind>eml|letter)$", path)):
                 payload, content_type, filename = eml_download(match.groupdict())
                 disposition = "inline" if match["kind"] == "letter" else "attachment"
@@ -410,7 +862,7 @@ class Handler(BaseHTTPRequestHandler):
                 body: dict = {}
                 if method in ("POST", "DELETE"):
                     length = int(self.headers.get("Content-Length") or 0)
-                    if length > 2_000_000:
+                    if length > 25_000_000:
                         raise ApiError(413, "Request too large.")
                     raw = self.rfile.read(length) if length else b""
                     body = json.loads(raw.decode("utf-8")) if raw.strip() else {}
@@ -419,12 +871,19 @@ class Handler(BaseHTTPRequestHandler):
                 for route_method, pattern, handler in ROUTES:
                     match = pattern.match(path)
                     if match and route_method == method:
-                        params = {**match.groupdict(), "query": parse_qs(parsed.query), "body": body}
+                        params = {**match.groupdict(), "query": parse_qs(parsed.query), "body": body, "port": self.server.server_address[1]}
                         self._json(200, handler(params))
                         return
                 raise ApiError(404, "Unknown endpoint.")
             if method != "GET":
                 raise ApiError(405, "Method not allowed.")
+            query = parse_qs(parsed.query)
+            if path in ("/", "") and query.get("state"):  # Google's sign-in comes back to the loopback address
+                from . import google_mail
+
+                if google_mail.is_callback(query):
+                    self._send(200, google_return_page(query), "text/html; charset=utf-8")
+                    return
             self._static(path)
         except ApiError as exc:
             self._json(exc.status, {"error": str(exc)})
@@ -461,6 +920,9 @@ def _sender_loop(stop: threading.Event) -> None:
         try:
             for outcome in mailer.send_due():
                 print(f"[mail     ] {'sent to ' + outcome['to'] if outcome['sent'] else 'failed: ' + outcome['error']}", flush=True)
+            if inbox.due(30):
+                inbox.check(lambda *args: None)
+                notify.events(lambda *args: None)
         except Exception as exc:  # The loop must survive any single failure.
             print(f"[mail     ] {type(exc).__name__}: {exc}", flush=True)
 

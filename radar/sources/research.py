@@ -21,22 +21,34 @@ _SUPERVISOR = re.compile(
 
 def _contacts_from_text(text: str, org: str, url: str) -> list[dict]:
     """Collect people explicitly named as contact/supervisor, with any published e-mail."""
+    from datetime import date
     emails = extract_emails(text)
     people: list[dict] = []
+    today = date.today().isoformat()
     for match in _SUPERVISOR.finditer(text):
         name = clean(match.group(1)).strip(".,;")
         if len(name.split()) >= 2 and name not in [person["name"] for person in people]:
-            people.append({"name": name, "role": "Supervisor named in the offer", "org": org, "url": url})
+            people.append({
+                "name": name, "role": "Supervisor named in the offer", "role_category": "supervisor",
+                "role_verified": 1, "confidence": 85, "email_verified": 0, "org": org, "url": url,
+                "evidence": [{"type": "offer_text", "url": url, "text": f"Supervisor named in posting: {name}", "retrieved_at": today}],
+            })
     for email in emails:
         local = fold(email.split("@")[0])
         owner = next((p for p in people if fold(p["name"].split()[-1]) in local.replace(".", " ").replace("-", " ")), None)
         if owner:
             owner.setdefault("email", email)
             owner["email_source"] = url
+            owner["email_verified"] = 1
+            owner["confidence"] = 95
         elif re.fullmatch(r"[a-z]+[._-][a-z-]+", email.split("@")[0]):
             guess = " ".join(part.capitalize() for part in re.split(r"[._]", email.split("@")[0]))
-            people.append({"name": guess, "role": "Contact e-mail published in the offer", "org": org,
-                           "url": url, "email": email, "email_source": url})
+            people.append({
+                "name": guess, "role": "Contact e-mail published in the offer", "role_category": "hiring_manager",
+                "role_verified": 0, "confidence": 75, "org": org, "url": url, "email": email, "email_source": url,
+                "email_verified": 1,
+                "evidence": [{"type": "offer_text", "url": url, "text": f"Direct contact email published in offer: {email}", "retrieved_at": today}],
+            })
     return people[:4]
 
 
@@ -259,8 +271,11 @@ def fbk() -> Source:
     listing = "https://jobs.fbk.eu/Internships/"
 
     def fetch(ctx: Context) -> list[RawOffer]:
-        tree = lxml_html.fromstring(net.get(listing).text)
         offers: list[RawOffer] = []
+        try:
+            tree = lxml_html.fromstring(net.get(listing, timeout=15, retries=0).text)
+        except net.FetchError:
+            return offers
         for link in tree.xpath("//a[contains(@href,'/Annunci/')]"):
             title = clean(link.text_content())
             if not title or not re.search(r"intern|thesis|tesi|stage|tirocinio", title, re.I):
@@ -270,7 +285,7 @@ def fbk() -> Source:
                 continue
             description = ""
             try:
-                detail = lxml_html.fromstring(net.get(url).text)
+                detail = lxml_html.fromstring(net.get(url, timeout=12, retries=0).text)
                 main = detail.xpath("//main") or detail.xpath("//article") or detail.xpath("//body")
                 description = html_to_text(etree.tostring(main[0], encoding="unicode"))[:7000]
             except (net.FetchError, etree.Error):
@@ -285,5 +300,45 @@ def fbk() -> Source:
     return Source("fbk", "research", "Fondazione Bruno Kessler", fetch, "Research institutes")
 
 
+# ------------------------------------------------------------------- EURECOM
+def eurecom() -> Source:
+    listing = "https://www.eurecom.fr/en/eurecom/job-opportunities/job-opportunities"
+
+    def fetch(ctx: Context) -> list[RawOffer]:
+        offers: list[RawOffer] = []
+        try:
+            page = net.get(listing, timeout=15, retries=1)
+        except net.FetchError:
+            return offers
+        tree = lxml_html.fromstring(page.text)
+        for link in tree.xpath("//a[contains(@href, '/en/job/')]"):
+            title = clean(link.text_content())
+            if not title or len(title) < 5:
+                continue
+            href = link.get("href")
+            url = urljoin(listing, href)
+            is_intern = bool(re.search(r"intern|stage|master|thesis|pfe|student|researcher|engineer|ai|learning|vision|nlp", title, re.I))
+            if not is_intern or any(o.url == url for o in offers) or len(offers) >= ctx.detail_cap * 2:
+                continue
+            description = ""
+            contacts = []
+            try:
+                detail = lxml_html.fromstring(net.get(url, timeout=15, retries=0).text)
+                main = detail.xpath("//main") or detail.xpath("//article") or detail.xpath("//body")
+                description = html_to_text(etree.tostring(main[0], encoding="unicode"))[:8000]
+                contacts = _contacts_from_text(description, "EURECOM", url)
+            except (net.FetchError, etree.Error):
+                pass
+            uid_slug = href.rstrip("/").split("/")[-1][:100]
+            offers.append(RawOffer(
+                uid=f"eurecom:{uid_slug}", title=title, org="EURECOM", url=url,
+                location="Sophia Antipolis, Biot, France", country_hint="FR",
+                description=description, trusted_internship=True, contacts=contacts,
+            ))
+        return offers
+
+    return Source("eurecom", "research", "EURECOM (Sophia Antipolis)", fetch, "Research institutes")
+
+
 def all_sources() -> list[Source]:
-    return [inria(), cea(), kaust_vsrp(), bsc(), fbk()]
+    return [inria(), cea(), kaust_vsrp(), bsc(), fbk(), eurecom()]
